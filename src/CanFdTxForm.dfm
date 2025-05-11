@@ -1,6 +1,6 @@
 object CanFdTxWin: TCanFdTxWin
-  Left = 239
-  Top = 1295
+  Left = 218
+  Top = 237
   Width = 902
   Height = 725
   BorderIcons = [biSystemMenu, biMinimize]
@@ -19,7 +19,6 @@ object CanFdTxWin: TCanFdTxWin
   Visible = True
   OnClose = FormClose
   OnCreate = FormCreate
-  OnDestroy = FormDestroy
   PixelsPerInch = 110
   TextHeight = 16
   object TxView: TStringGrid
@@ -119,11 +118,11 @@ object CanFdTxWin: TCanFdTxWin
       Caption = 'Trigger ID'
     end
     object Label7: TLabel
-      Left = 183
+      Left = 175
       Top = 145
-      Width = 69
+      Width = 75
       Height = 16
-      Caption = 'Period (ms)'
+      Caption = 'Intervall (ms)'
     end
     object Label9: TLabel
       Left = 336
@@ -435,7 +434,7 @@ object CanFdTxWin: TCanFdTxWin
         Top = 20
         Width = 112
         Height = 22
-        Caption = 'RTR Packet'
+        Caption = 'RTR Paket'
         TabOrder = 0
       end
       object EFFCheck: TCheckBox
@@ -472,7 +471,7 @@ object CanFdTxWin: TCanFdTxWin
       Top = 14
       Width = 119
       Height = 24
-      Number = 0
+      Number = 15663104
       ZahlenFormat = HexFormat
       IdShowing = False
       BinMode = Z32AutoMode
@@ -511,7 +510,7 @@ object CanFdTxWin: TCanFdTxWin
       Top = 174
       Width = 119
       Height = 24
-      Number = 0
+      Number = 234881024
       ZahlenFormat = HexFormat
       IdShowing = False
       BinMode = Z32AutoMode

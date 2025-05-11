@@ -2,8 +2,8 @@
                        CanRxForm.pas  -  description
                              -------------------
     begin             : 07.01.2013
-    last modified     : 22.12.2019     
-    copyright         : (C) 2013 - 2019 by MHS-Elektronik GmbH & Co. KG, Germany
+    last modified     : 14.10.2022
+    copyright         : (C) 2013 - 2022 by MHS-Elektronik GmbH & Co. KG, Germany
                                http://www.mhs-elektronik.de    
     autho             : Klaus Demlehner, klaus@mhs-elektronik.de
  ***************************************************************************}
@@ -24,38 +24,11 @@ interface
 
 uses
   Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
-  Dialogs, Grids, StdCtrls, Buttons, ExtCtrls, StrUtils, Util,
-  CanRxPrototyp, CanRx, ObjCanRx, TinyCanDrv, ComCtrls, Menus;
+  Dialogs, Grids, StdCtrls, Buttons, ExtCtrls, StrUtils, Util, CanCoolDefs,
+  CanRxPrototyp, CanRx, setup, ObjCanRx, TinyCanDrv, ComCtrls, Menus;
 
-
-const
-  RX_WIN_SHOW_TRACE      = 1;
-  RX_WIN_SHOW_OBJECT     = 2;
-  RX_WIN_CLEAR           = 3;
-  RX_WIN_SAVE_TRACE      = 4;
-  RX_WIN_SHOW_RX_PANNEL  = 5;
-  RX_WIN_HIDE_RX_PANNEL  = 6;
-  RX_WIN_STAT_CLEAR      = 7;
-  RX_WIN_SHOW_ALL_MSG    = 8;
-  RX_WIN_SHOW_USED_MSG   = 9;
-  RX_WIN_SHOW_UNUSED_MSG = 10;
-  RX_WIN_START_TRACE     = 11;
-  RX_WIN_STOP_TRACE      = 12;
-
-  CanBusStatusStr: array[0..3] of String = ('Bus Ok',
-                                            'Error Warn.',
-                                            'Error Passiv',
-                                            'Bus Off!');
-                                           
-  CanErrorsStr: array[1..6] of String = ('Stuff Error',
-                                         'Form Error',
-                                         'Ack Error',
-                                         'Bit1 Error',
-                                         'Bit0 Error',
-                                         'CRC Error');
 
 type
-  TRxMsgShowMode = (RxMsgShowAll, RxMsgShowUsed, RxMsgShowUnused);
 
   TCanRxWin = class(TCanRxPrototypForm)
     RxView: TStringGrid;
@@ -97,19 +70,19 @@ type
     FObjectMode: Boolean;
     FRxDetailsShow: Boolean;
     RxFilterMode: TRxMsgShowMode;
+    procedure SetSetup;
     procedure SetRxDetailsShow(mode: Boolean);
     procedure SetObjectMode(mode: Boolean);
     procedure CleanStatMessage;
     procedure DrawStatMessage(index: Integer);
   public
     { Public-Deklarationen }
-    EnableTrace: boolean;
     RxList: TRxCanList;
     RxObjList: TRxCanObjList;
-    TraceFile: String;
+    TraceFile: String;    
     procedure RxCanMessages(can_msg: PCanFdMsg; count: Integer); override;
     procedure RxCanUpdate; override;    
-    procedure ExecuteCmd(cmd: Integer; can_msg: PCanFdMsg);
+    function ExecuteCmd(cmd: Longword; can_msg: PCanFdMsg; param1: Integer): Integer; override;
     property ObjectMode: Boolean read FObjectMode write SetObjectMode;
     property RxDetailsShow: Boolean read FRxDetailsShow write SetRxDetailsShow;
   end;
@@ -122,22 +95,14 @@ uses MainForm, CanTxForm;
 
 { TEmpfangForm }
 
-const
-RxViewCanObjHeaders: array[0..6,0..1] of String = (('Anzahl',        'XXXXXXXXXX'),
-                                                   ('Period [s.ms]', 'XXXXXX.XXX'),
-                                                   ('Frame',         'STD/RTR FD/BRS'),
-                                                   ('ID',            '12345678'),
-                                                   ('DLC',           '64'),
-                                                   ('DATA [HEX]',    'XX XX XX XX XX XX XX XX'),
-                                                   ('DATA [ASCII]',  'AAAAAAAA'));
 
-RxviewCanTraceHeaders: array[0..5,0..1] of String = (('Time [s.ms]',  'XXXXXX.XXX'),
-                                                     ('Frame',        'STD/RTR FD/BRS'),         
-                                                     ('ID',           '12345678'),               
-                                                     ('DLC',          '64'),
-                                                     ('DATA [HEX]',   'XX XX XX XX XX XX XX XX'),
-                                                     ('DATA [ASCII]', 'AAAAAAAA'));              
-                                                                    
+procedure TCanRxWin.SetSetup;
+begin;
+RxView.Font.Name := SetupData.TraceFont.Name;
+RxView.Font.Size := SetupData.TraceFont.Size;
+RxView.Font.Style := SetupData.TraceFont.Style;
+SetObjectMode(FObjectMode);
+end;
 
 
 procedure TCanRxWin.SetObjectMode(mode: Boolean);
@@ -210,6 +175,7 @@ procedure TCanRxWin.FormCreate(Sender: TObject);
 
 begin
 inherited;
+CommandMask := SYS_COMMAND or RX_WIN_COMMAND;
 RxList := TRxCanList.Create(self);
 RxObjList := TRxCanObjList.Create(self);
 ObjectMode := False;
@@ -507,12 +473,11 @@ begin
 if ARow = 0 then
   exit;
 RxView.Canvas.Brush.Color := RxView.Color;
-RxView.Canvas.Font.Color := clWindowText;
-
+RxView.Canvas.Font.Color := SetupData.TraceDefColor; // <*> clWindowText;
 if gdFocused in State then
   begin
   RxView.Canvas.Brush.Color := clActiveCaption;
-  RxView.Canvas.Font.Color := clCaptionText;
+  //RxView.Canvas.Font.Color := clCaptionText; <*>
   end
 else if gdFixed in State then
   RxView.Canvas.Brush.Color := RxView.FixedColor;
@@ -546,7 +511,7 @@ else
 // **** OV Frame anzeigen
 if (can_msg^.Flags and FlagCanFdOV) > 0 then
   begin
-  RxView.Canvas.Font.Color := clFuchsia;
+  RxView.Canvas.Font.Color := SetupData.TraceStatusColor;//clFuchsia; <*> 
   case ACol of       
     0 : begin;
         s := timestamp div 1000;            // Timestamp
@@ -573,13 +538,13 @@ if (can_msg^.Flags and FlagCanFdOV) > 0 then
 // **** Fehler anzeigen
 if (can_msg^.Flags and FlagCanFdError) > 0 then
   begin;  // Fehler
-  RxView.Canvas.Font.Color := clRed;
+  RxView.Canvas.Font.Color := SetupData.TraceErrorColor; //clRed; <*>
   case ACol of
     0 : begin;
         s := timestamp div 1000;            // Timestamp
         ms := timestamp mod 1000;
         str := format('%6u.%.3u', [s,ms]);
-        end;    
+        end;
     1 : str := 'ERROR';                     // Frame Format
     2 : str := '';                          // ID
     3 : str := '';                          // DLC
@@ -603,8 +568,8 @@ if (can_msg^.Flags and FlagCanFdError) > 0 then
   exit;
   end;
 
-if (can_msg^.Flags and FlagsCanFilHit) > 0 then
-  RxView.Canvas.Font.Color := clLime;
+if (can_msg^.Flags and FlagCanFdFilHit) > 0 then
+  RxView.Canvas.Font.Color := SetupData.TraceHitColor;// <*> clLime;
 dlc := can_msg^.Length;
 if (can_msg^.Flags and FlagCanFdEFF) > 0 then
   eff := True
@@ -632,7 +597,7 @@ else
     inc(data_lines); 
   end;
           
-y := (LineHeight * data_lines) + 4;  
+y := (LineHeight * data_lines) + 4;
 RxView.RowHeights[ARow] := y;
 out_rect.Left := Rect.Left + 1;
 out_rect.Top := Rect.Top + 2;
@@ -685,7 +650,7 @@ case ACol of
             begin;
             str := str + chr($0D) + chr($0A);          
             char_cnt := 0;
-            end;  
+            end;
           str := str + HexDigits[d SHR $04] + HexDigits[d AND $0F];        
           inc(char_cnt);
           end;
@@ -724,18 +689,18 @@ procedure TCanRxWin.RxCanMessages(can_msg: PCanFdMsg; count: Integer);
 var i: Integer;
 
 begin
-if (not EnableTrace) or (count = 0) then
+if (not MainWin.EnableTrace) or (count = 0) then
   exit;
 for i := 1 to count do
   begin;
   if RxFilterMode = RxMsgShowUsed then
     begin;
-    if (can_msg^.Flags and FlagsCanFilHit) = 0 then
+    if (can_msg^.Flags and FlagCanFdFilHit) = 0 then
       continue;
     end
   else if RxFilterMode = RxMsgShowUnused then
     begin;
-    if (can_msg^.Flags and FlagsCanFilHit) <> 0 then
+    if (can_msg^.Flags and FlagCanFdFilHit) <> 0 then
       continue;
     end;
   RxList.Add(can_msg);
@@ -749,7 +714,7 @@ procedure TCanRxWin.RxCanUpdate;
 var cnt: Integer;
 
 begin
-if not EnableTrace then
+if not MainWin.EnableTrace then
   exit;
 if FObjectMode then
   cnt := RxObjList.Count + 1
@@ -767,10 +732,12 @@ RxView.Refresh;
 end;
 
 
-procedure TCanRxWin.ExecuteCmd(cmd: Integer; can_msg: PCanFdMsg);
+function TCanRxWin.ExecuteCmd(cmd: Longword; can_msg: PCanFdMsg; param1: Integer): Integer;
 
 begin;
+result := 0;
 case cmd of
+  SYS_CMD_SET_SETUP  : SetSetup;
   RX_WIN_SHOW_TRACE  : begin;
                        ObjectMode := False;   
                        end;
@@ -789,13 +756,17 @@ case cmd of
                          MessageDlg('Keine Daten zum Speichern!', mtError, [mbOk], 0);
                          exit;
                          end;
-                       SaveDialog.FileName := TraceFile;
+                       SaveDialog.Title := self.Caption;
+                       if length(TraceFile) > 0 then
+                         SaveDialog.FileName := TraceFile
+                       else
+                         SaveDialog.FileName := SaveDialog.Title;
                        if SaveDialog.Execute then
                          begin;
                          TraceFile := SaveDialog.FileName;
                          if length(TraceFile) > 0 then
                            RxList.SaveToFile(TraceFile);
-                         end;
+                         end;                           
                        end;
   RX_WIN_SHOW_RX_PANNEL :
                        begin;
@@ -816,8 +787,8 @@ case cmd of
   RX_WIN_SHOW_ALL_MSG: RxFilterMode := RxMsgShowAll;
   RX_WIN_SHOW_USED_MSG : RxFilterMode := RxMsgShowUsed;
   RX_WIN_SHOW_UNUSED_MSG : RxFilterMode := RxMsgShowUnused;
-  RX_WIN_START_TRACE : EnableTrace := True;
-  RX_WIN_STOP_TRACE  : EnableTrace := False;
+  {RX_WIN_START_TRACE : EnableTrace := True; <*>
+  RX_WIN_STOP_TRACE  : EnableTrace := False;}
   end;
 end;
 
@@ -854,8 +825,10 @@ else
   end;
 if (can_msg^.Flags and FlagCanFdError) > 0 then
   exit;  // Fehler Message
-if Assigned(MainWin.CanTxWin) then
-  MainWin.CanTxWin.ExecuteCmd(TX_WIN_ADD_MESSAGE, can_msg);
+if Assigned(MainWin.CanFdTxWin) then
+  MainWin.CanFdTxWin.ExecuteCmd(TX_WIN_ADD_MESSAGE, can_msg, 0)
+else if Assigned(MainWin.CanTxWin) then
+    MainWin.CanTxWin.ExecuteCmd(TX_WIN_ADD_MESSAGE, can_msg, 0);
 end;
 
 

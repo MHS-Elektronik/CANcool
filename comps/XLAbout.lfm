@@ -1,0 +1,223 @@
+object XLAboutBox: TXLAboutBox
+  Left = 913
+  Top = 47
+  BorderStyle = bsDialog
+  Caption = 'About'
+  ClientHeight = 342
+  ClientWidth = 452
+  Color = clBtnFace
+  ParentFont = True
+  Position = poScreenCenter
+  OnCreate = FormCreate
+  PixelsPerInch = 96
+  object OKButton: TButton
+    Left = 368
+    Top = 311
+    Width = 75
+    Height = 25
+    Cancel = True
+    Caption = 'OK'
+    Default = True
+    ModalResult = 1
+    TabOrder = 0
+  end
+  object PageControl1: TPageControl
+    Left = 0
+    Top = 0
+    Width = 452
+    Height = 305
+    ActivePage = TabSheet1
+    Align = alTop
+    TabOrder = 1
+    object TabSheet1: TTabSheet
+      Caption = 'Copyright'
+      object Copyright: TLabel
+        Left = 82
+        Top = 94
+        Width = 132
+        Height = 22
+        Caption = 'Copyright...'
+        Font.Charset = ANSI_CHARSET
+        Font.Color = clBlack
+        Font.Height = -19
+        Font.Name = 'Courier New'
+        Font.Style = [fsBold]
+        ParentFont = False
+      end
+      object Bevel1: TBevel
+        Left = 82
+        Top = 206
+        Width = 359
+        Height = 2
+      end
+      object Version: TLabel
+        Left = 82
+        Top = 67
+        Width = 44
+        Height = 13
+        Caption = 'Version...'
+        Font.Charset = ANSI_CHARSET
+        Font.Color = clBlack
+        Font.Height = -11
+        Font.Name = 'MS Sans Serif'
+        Font.Style = []
+        ParentFont = False
+      end
+      object Label3: TLabel
+        Left = 82
+        Top = 232
+        Width = 145
+        Height = 13
+        Caption = 'Memory Available to Windows:'
+      end
+      object PhysMem: TLabel
+        Left = 323
+        Top = 232
+        Width = 6
+        Height = 13
+        Alignment = taRightJustify
+        Caption = '0'
+      end
+      object OS: TLabel
+        Left = 82
+        Top = 215
+        Width = 15
+        Height = 13
+        Caption = 'OS'
+      end
+      object URL: TLabel
+        Left = 82
+        Top = 157
+        Width = 31
+        Height = 13
+        Cursor = crHandPoint
+        Caption = 'URL...'
+        Font.Charset = DEFAULT_CHARSET
+        Font.Color = clNavy
+        Font.Height = -11
+        Font.Name = 'MS Sans Serif'
+        Font.Style = [fsUnderline]
+        ParentFont = False
+        OnClick = URLClick
+      end
+      object ProgramIcon: TImage
+        Left = 16
+        Top = 27
+        Width = 48
+        Height = 48
+      end
+      object ProductName1: TLabel
+        Left = 82
+        Top = 28
+        Width = 238
+        Height = 33
+        Caption = 'ProductName...'
+        Font.Charset = ANSI_CHARSET
+        Font.Color = clWhite
+        Font.Height = -29
+        Font.Name = 'Courier New'
+        Font.Style = [fsBold]
+        ParentFont = False
+        Transparent = True
+      end
+      object ProductName3: TLabel
+        Left = 83
+        Top = 27
+        Width = 238
+        Height = 33
+        Caption = 'ProductName...'
+        Font.Charset = ANSI_CHARSET
+        Font.Color = clGray
+        Font.Height = -29
+        Font.Name = 'Courier New'
+        Font.Style = [fsBold]
+        ParentFont = False
+        Transparent = True
+      end
+      object ProductName2: TLabel
+        Left = 84
+        Top = 26
+        Width = 238
+        Height = 33
+        Caption = 'ProductName...'
+        Font.Charset = ANSI_CHARSET
+        Font.Color = clBlack
+        Font.Height = -29
+        Font.Name = 'Courier New'
+        Font.Style = [fsBold]
+        ParentFont = False
+        Transparent = True
+      end
+      object Company: TLabel
+        Left = 82
+        Top = 123
+        Width = 77
+        Height = 22
+        Caption = 'Company'
+        Font.Charset = DEFAULT_CHARSET
+        Font.Color = clBlack
+        Font.Height = -19
+        Font.Name = 'Courier New'
+        Font.Style = [fsBold]
+        ParentFont = False
+      end
+      object EMAIL: TLabel
+        Left = 82
+        Top = 182
+        Width = 32
+        Height = 13
+        Cursor = crHandPoint
+        Caption = 'EMAIL'
+        Font.Charset = DEFAULT_CHARSET
+        Font.Color = clNavy
+        Font.Height = -11
+        Font.Name = 'MS Sans Serif'
+        Font.Style = [fsUnderline]
+        ParentFont = False
+        OnClick = EMAILClick
+      end
+    end
+    object TabSheet2: TTabSheet
+      Caption = 'Komponenten'
+      ImageIndex = 1
+      object CompView: TMemo
+        Left = 0
+        Top = 0
+        Width = 444
+        Height = 277
+        Align = alClient
+        BorderStyle = bsNone
+        Color = clBtnFace
+        Font.Charset = ANSI_CHARSET
+        Font.Color = clWindowText
+        Font.Height = -11
+        Font.Name = 'Courier New'
+        Font.Style = []
+        Lines.Strings = (
+          '?'
+        )
+        ParentFont = False
+        ScrollBars = ssVertical
+        TabOrder = 0
+      end
+    end
+    object TabSheet3: TTabSheet
+      Caption = 'Lizenz'
+      ImageIndex = 2
+      object LizenzView: TMemo
+        Left = 0
+        Top = 0
+        Width = 444
+        Height = 277
+        Align = alClient
+        BorderStyle = bsNone
+        Color = clBtnFace
+        Lines.Strings = (
+          '?'
+        )
+        ScrollBars = ssVertical
+        TabOrder = 0
+      end
+    end
+  end
+end

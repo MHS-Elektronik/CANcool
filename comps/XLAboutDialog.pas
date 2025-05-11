@@ -9,9 +9,16 @@
 {****************************************************************************}
 unit XLAboutDialog;
 
+{$IFDEF FPC}
+  {$MODE Delphi}
+{$ENDIF}
+
 interface
 
 uses
+{$IFDEF FPC}
+  LResources,
+{$ENDIF}
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms, StdCtrls,
   Dialogs, XLAbout;
 
@@ -122,6 +129,9 @@ end;
 
 procedure Register;
 begin
+{$IFDEF FPC}
+  {$I XLAboutDialog.lrs}
+{$ENDIF}
 RegisterComponents('MHS',[TXLAboutDialog]);
 end;
 

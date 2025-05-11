@@ -2,10 +2,10 @@
                        CanGaugeForm.pas  -  description
                              -------------------
     begin             : 03.12.2012
-    last modified     : 30.05.2020     
-    copyright         : (C) 2012 - 2020 by MHS-Elektronik GmbH & Co. KG, Germany
+    last modified     : 27.12.2021     
+    copyright         : (C) 2012 - 2021 by MHS-Elektronik GmbH & Co. KG, Germany
                                http://www.mhs-elektronik.de    
-    autho             : Klaus Demlehner, klaus@mhs-elektronik.de
+    author            : Klaus Demlehner, klaus@mhs-elektronik.de
  ***************************************************************************}
 
 {***************************************************************************
@@ -41,12 +41,10 @@ type
     procedure AktivBtnClick(Sender: TObject);
     procedure DestroyBtnClick(Sender: TObject);
   private
-    { Private-Deklarationen }
-    LockStatus: boolean;
-    WidgetAktiv: boolean;
+    { Private-Deklarationen }    
     BerechnungsObj: TIntTerm;
     DataChange: Boolean;
-    Data: array[0..7] of Byte;
+    Data: array[0..63] of Byte;
     Varis: VarArray;
     FSizeType: Integer;
     CanId: longword;
@@ -55,8 +53,6 @@ type
     MuxCanMask: array[0..7] of Byte;
     MuxCanData: array[0..7] of Byte;
     Formula: string;
-    procedure Lock;
-    procedure Unlock;
     procedure SetFSizeType(value: Integer);
     property SizeType: Integer read FSizeType write SetFSizeType;
   public
@@ -78,7 +74,7 @@ var
 begin
 inherited;
 BerechnungsObj := TIntTerm.Create;
-SetLength(Varis, 8);
+SetLength(Varis, 64);
 for i := 0 to high(Varis) do
   begin
   Varis[i].Name := format('d%u',[i]);
@@ -86,8 +82,6 @@ for i := 0 to high(Varis) do
   end;
 //slef.Selected;
 Gauge.FaceOptions := Gauge.FaceOptions - [ShowIndicatorMin, ShowIndicatorMid, ShowIndicatorMax];
-WidgetAktiv := True;
-LockStatus := False;
 SizeType := 1;
 Gauge.ScaleMin := 0;
 Gauge.ScaleMax := 100;
@@ -161,7 +155,7 @@ var
   fault: boolean;
   
 begin;
-if (not WidgetAktiv) or (count = 0) or (LockStatus) then
+if count = 0 then
   exit;
 hit_msg := nil;  
 for i := 1 to count do
@@ -190,7 +184,7 @@ for i := 1 to count do
     begin;   
     if (can_msg^.Flags and FlagCanFdRTR) = 0 then
       begin;
-      can_msg^.Flags := can_msg^.Flags or FlagsCanFilHit;
+      can_msg^.Flags := can_msg^.Flags or FlagCanFdFilHit;
       hit_msg := can_msg;   
       end;
     end;
@@ -217,12 +211,9 @@ var
   i: integer;
   
 begin
-RxCanEnterCritical;
-if (not WidgetAktiv) or (not DataChange) or (LockStatus) then
-  begin
-  RxCanLeaveCritical;
+if not DataChange then
   exit;
-  end;  
+RxCanEnterCritical; 
 DataChange := False;
 for i := 0 to high(Varis) do
   Varis[i].Wert := Data[i];
@@ -241,7 +232,7 @@ end;
 procedure TCanGaugeWin.LoadConfig(ConfigList: TStrings);
 
 begin
-Lock;
+EventsLock;
 self.Caption := ReadListString(ConfigList, 'Name', self.Caption);
 CanId := ReadListInteger(ConfigList, 'CanId', CanId);
 MuxDlc := ReadListInteger(ConfigList, 'MuxDlc', 8);
@@ -293,7 +284,7 @@ Gauge.MidColor := TColor(ReadListInteger(ConfigList, 'MidRangeColor', Integer(Ga
 Gauge.MaxColor := TColor(ReadListInteger(ConfigList, 'MaxRangeColor', Integer(Gauge.MinColor)));  
 FormResize(self);
 WindowMenuItem.Caption :=  self.Caption;
-Unlock;
+EventsUnlock;
 end;
 
 
@@ -356,8 +347,7 @@ var
   Form: TCanGaugeSetupWin;
 
 begin
-Lock;
-inherited;
+EventsLock;
 Form := TCanGaugeSetupWin.Create(self);
 
 Form.NameEdit.Text := self.Caption;
@@ -439,14 +429,13 @@ if Form.ShowModal = mrOK then
   WindowMenuItem.Caption :=  self.Caption;
   end;
 Form.Free;
-Unlock;
+EventsUnlock;
 end;
 
 
 procedure TCanGaugeWin.AktivBtnClick(Sender: TObject);
 
 begin
-inherited;
 WidgetAktiv := AktivBtn.Checked;
 end;
 
@@ -454,27 +443,7 @@ end;
 procedure TCanGaugeWin.DestroyBtnClick(Sender: TObject);
 
 begin
-Lock;
-inherited;
 close;
-end;
-
-
-procedure TCanGaugeWin.Lock;
-
-begin
-RxCanEnterCritical;
-LockStatus := True;
-RxCanLeaveCritical;
-end;
-
-
-procedure TCanGaugeWin.Unlock;
-
-begin
-RxCanEnterCritical;
-LockStatus := False;
-RxCanLeaveCritical;
 end;
 
 end.

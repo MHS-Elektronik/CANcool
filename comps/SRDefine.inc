@@ -59,6 +59,12 @@
 
 {$B-}
 
+{$IFDEF FPC}
+{$DEFINE VER100_up}
+{$DEFINE VER150}
+//{$DEFINE SR_Delphi7}  // <*> neu
+{$ENDIF}
+
 {$DEFINE SRDefines}
 
 {$IFDEF WINDOWS}
@@ -176,6 +182,7 @@
 {$IFDEF SR_Delphi1}
   {$DEFINE SR_Delphi}
 {$ENDIF}
+
 
 {$IFDEF SR_Delphi2}
   {$DEFINE SR_Delphi}

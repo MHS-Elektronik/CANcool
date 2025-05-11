@@ -1,18 +1,18 @@
 inherited CanBitValueWin: TCanBitValueWin
-  Left = 1522
-  Top = 637
-  BorderIcons = [biSystemMenu, biMinimize]
+  Left = 1229
+  Top = 1763
+  BorderIcons = []
   BorderStyle = bsSingle
   Caption = 'Bit Indikator'
-  ClientHeight = 31
-  ClientWidth = 213
+  ClientHeight = 38
+  ClientWidth = 262
   OldCreateOrder = True
   PopupMenu = BitIndikMenu
   OnDestroy = FormDestroy
   OnResize = FormResize
   OnShow = nil
-  PixelsPerInch = 96
-  TextHeight = 13
+  PixelsPerInch = 110
+  TextHeight = 16
   object BitIndikMenu: TPopupMenu
     object ConfigBtn: TMenuItem
       Caption = 'Konfiguration'

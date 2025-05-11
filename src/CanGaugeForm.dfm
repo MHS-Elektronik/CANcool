@@ -1,27 +1,27 @@
 inherited CanGaugeWin: TCanGaugeWin
-  Left = 1183
-  Top = 235
-  BorderIcons = [biSystemMenu, biMinimize]
+  Left = 2311
+  Top = 1204
+  BorderIcons = []
   BorderStyle = bsSingle
   Caption = 'Analog Instrument'
-  ClientHeight = 408
-  ClientWidth = 410
+  ClientHeight = 502
+  ClientWidth = 505
   Color = clWhite
   Constraints.MinHeight = 150
   Constraints.MinWidth = 150
   OldCreateOrder = True
   PopupMenu = AnalogInstMenu
   OnResize = FormResize
-  PixelsPerInch = 96
-  TextHeight = 13
+  PixelsPerInch = 110
+  TextHeight = 16
   object Gauge: TA3nalogGauge
     Left = 0
     Top = 0
-    Width = 400
-    Height = 400
+    Width = 492
+    Height = 492
     Font.Charset = DEFAULT_CHARSET
     Font.Color = clWindowText
-    Font.Height = -19
+    Font.Height = -23
     Font.Name = 'MS Sans Serif'
     Font.Style = [fsBold]
     MinColor = clGreen

@@ -1,11 +1,11 @@
 {***************************************************************************
-                       CanTxForm.pas  -  description
+                       CanFdTxForm.pas  -  description
                              -------------------
     begin             : 07.01.2013
-    last modified     : 30.05.2020     
-    copyright         : (C) 2013 - 2020 by MHS-Elektronik GmbH & Co. KG, Germany
+    last modified     : 13.10.2022
+    copyright         : (C) 2013 - 2022 by MHS-Elektronik GmbH & Co. KG, Germany
                                http://www.mhs-elektronik.de    
-    autho             : Klaus Demlehner, klaus@mhs-elektronik.de
+    author            : Klaus Demlehner, klaus@mhs-elektronik.de
  ***************************************************************************}
 
 {***************************************************************************
@@ -24,16 +24,8 @@ interface
 
 uses
   Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
-  Dialogs, Grids, ExtCtrls, StdCtrls, Buttons, StrUtils, Menus, mmsystem,
-  util, TinyCanDrv, zahlen32, zahlen, CanRxPrototyp, CanRx, CanTx;
-
-const
-  TX_WIN_SAVE  = 1;
-  TX_WIN_LOAD  = 2;
-  TX_WIN_CLEAR = 3;
-  TX_WIN_ENABLE_INTERVALL = 4;
-  TX_WIN_DISABLE_INTERVALL = 5;
-  TX_WIN_ADD_MESSAGE = 6;
+  Dialogs, Grids, ExtCtrls, StdCtrls, Buttons, StrUtils, Menus, mmsystem, CanCoolDefs,
+  util, TinyCanDrv, zahlen32, zahlen, CanRxPrototyp, Setup, CanRx, CanTx;
 
 type
   TCanFdTxWin = class(TCanRxPrototypForm)
@@ -144,7 +136,6 @@ type
     Label23: TLabel;
     DLCEdit: TComboBox;
     procedure FormCreate(Sender: TObject);
-    procedure FormDestroy(Sender: TObject);
     procedure MsgAddBtnClick(Sender: TObject);
     procedure MsgDelBtnClick(Sender: TObject);
     procedure TxViewDrawCell(Sender: TObject; ACol, ARow: Integer; Rect: TRect; State: TGridDrawState);
@@ -158,10 +149,10 @@ type
     LineHeight: Integer;
     PressedBtn: integer;
     CanDataEdit: array[0..63] of TZahlenEdit;
-    function CorrectCanFdLen(len: Byte): Byte;
+    TxList: TTxCanList;
     procedure UpdateUi;
+    procedure UpdateTitle;
     procedure SetupTxView;
-    procedure EmptyMessage(can_msg: PTxCanMsg);
     procedure GetMsgFromUi(can_msg: PTxCanMsg);
     procedure SetMsgToUi(can_msg: PTxCanMsg);
     procedure DisableTxEditEvents;
@@ -171,11 +162,10 @@ type
     procedure TxEditKeyUp(Sender: TObject; var Key: Word; Shift: TShiftState);
   public
     { Public-Deklarationen }
-    TxList: TTxCanList;
-    TxListFile: String;
+    procedure SetTxList(tx_list: TTxCanList);
     procedure RxCanMessages(can_msg: PCanFdMsg; count: Integer); override;
     procedure RxCanUpdate; override;    
-    procedure ExecuteCmd(cmd: Integer; can_msg: PCanFdMsg);
+    function ExecuteCmd(cmd: Longword; can_msg: PCanFdMsg; param1: Integer): Integer; override;
   end;
 
 
@@ -187,16 +177,6 @@ uses MainForm;
 
 { TSendenForm }
 
-const
-TxViewHeaders: array[0..8,0..1] of String = (('Frame',      'STD/RTR  FD/BRS'),
-                                             ('ID',         '12345678'),
-                                             ('DLC',        '64'),
-                                             ('DATA [HEX]', 'XX XX XX XX XX XX XX XX'),
-                                             ('Auto',       'Periodic'),
-                                             ('Intervall',  'XXXXXX'),
-                                             ('Trigger ID', '12345678'),
-                                             ('Komentar',   'XXXXXXXXXXXXXXXXXXXXXXXXX'),
-                                             ('Senden',     '-Senden-'));
 
 procedure TCanFdTxWin.FormCreate(Sender: TObject);
 var i: Integer;
@@ -204,20 +184,28 @@ var i: Integer;
 
 begin
 inherited;
+CommandMask := SYS_COMMAND or TX_WIN_COMMAND;
 for i := 0 to 63 do
   begin;
   obj := FindComponent('DataEdit' + IntToStr(i));
   if obj is TZahlenEdit then 
     CanDataEdit[i] := TZahlenEdit(obj); 
-  end;      
+  end;
 TMainWin(owner).ButtonImages.GetBitmap(2, MsgAddBtn.Glyph);
 TMainWin(owner).ButtonImages.GetBitmap(0, MsgCopyBtn.Glyph);
 TMainWin(owner).ButtonImages.GetBitmap(6, MsgTxBtn.Glyph);
 TMainWin(owner).ButtonImages.GetBitmap(3, MsgDelBtn.Glyph);
 PressedBtn := 0;
-TxList := TTxCanList.Create(self);
+TxList := nil;
 SetupTxView;
 EnableTxEditEvents;
+end;
+
+
+procedure TCanFdTxWin.SetTxList(tx_list: TTxCanList);
+
+begin;
+TxList := tx_list;
 end;
 
 
@@ -239,8 +227,8 @@ for col := 0 to 8 do
     if i = 0 then
       TxView.Cells[col,0] := s;
     DrawText(TxView.Canvas.Handle, PChar(s), length(s), rect, DT_CalcRect or DT_Left);
-    w := rect.Right - rect.Left;  // Breite
-    h := rect.Bottom - rect.Top;   // Höhe
+    w := rect.Right - rect.Left;    // Breite
+    h := rect.Bottom - rect.Top;    // Höhe
     if w_max < w then
       w_max := w;
     if h_max < h then
@@ -254,52 +242,7 @@ TxView.Refresh;
 end;
 
 
-procedure TCanFdTxWin.FormDestroy(Sender: TObject);
 
-begin
-if Assigned(TxList) then
-  FreeAndNil(TxList);
-inherited;
-end;
-
-
-procedure TCanFdTxWin.EmptyMessage(can_msg: PTxCanMsg);
-var i: Integer;
-
-begin;
-can_msg^.CanMsg.Flags := 0;
-can_msg^.CanMsg.ID := 0;
-for i := 0 to 63 do
-  can_msg^.CanMsg.Data.Bytes[i] := 0;
-can_msg^.TxMode := 0;  // 0 = Off, 1 = Periodic, 2 = RTR, 3 = Trigger
-can_msg^.Intervall := 0;
-can_msg^.TriggerId := 0;
-can_msg^.Comment := '';
-end;
-
-
-function TCanFdTxWin.CorrectCanFdLen(len: Byte): Byte;
-
-begin;
-if len <= 8 then
-  result := len
-else if len > 64 then // Datenlänge auf 64 Byte begrenzen
-  result := 64
-else if len > 48 then
-  result := 64  // Datenlänge = 64 Byte
-else if len > 32 then
-  result := 48  // Datenlänge = 48 Byte
-else if len > 24 then
-  result := 32  // Datenlänge = 32 Byte
-else if len > 20 then
-  result := 24  // Datenlänge = 24 Byte
-else if len > 16 then
-  result := 20  // Datenlänge = 20 Byte
-else if len > 12 then
-  result := 16  // Datenlänge = 16 Byte
-else
-  result := 12  // Datenlänge = 12 Byte
-end;
 
 
 procedure TCanFdTxWin.UpdateUi;
@@ -325,13 +268,14 @@ var i: Integer;
 
 begin;
 DisableTxEditEvents;
+
 len := CorrectCanFdLen(StrToInt(DLCEdit.Text));
 can_msg^.CanMsg.Length := len;
 DLCEdit.Text := IntToStr(len);
 if len > 8 then
   CanFdCheck.Checked := True;
 if not CanFdCheck.Checked then
-   CanFdBrsCheck.Checked := False;
+  CanFdBrsCheck.Checked := False;
 can_msg^.CanMsg.Flags := 0;
 if EFFCheck.Checked then
   can_msg^.CanMsg.Flags := can_msg^.CanMsg.Flags or FlagCanFdEFF;
@@ -342,12 +286,12 @@ if CanFdCheck.Checked then
 if CanFdBrsCheck.Checked then
   can_msg^.CanMsg.Flags := can_msg^.CanMsg.Flags or FlagCanFdBRS;
 can_msg^.CanMsg.ID:=IDEdit.Number;
-for i := 0 to 63 do
-  can_msg^.CanMsg.Data.Bytes[i] := CanDataEdit[i].Number;
 can_msg^.TxMode := TxModeCombo.ItemIndex;   // 0 = Off, 1 = Periodic, 2 = RTR, 3 = Trigger
 can_msg^.Intervall := IntervallEdit.Number;
 can_msg^.TriggerId := TriggerIdEdit.Number;
 can_msg^.Comment := CommentEdit.Text;
+for i := 0 to 63 do
+  can_msg^.CanMsg.Data.Bytes[i] := CanDataEdit[i].Number;
 EnableTxEditEvents;
 end;
 
@@ -413,7 +357,7 @@ var can_msg: TTxCanMsg;
 begin
 if TxList = nil then
   exit;
-EmptyMessage(@can_msg);
+TxList.EmptyMessage(@can_msg);
 TxList.Add(@can_msg);
 TxView.RowCount := TxList.Count+1;
 TxView.Row := TxView.RowCount - 1;
@@ -692,13 +636,25 @@ end;
 procedure TCanFdTxWin.RxCanUpdate;
 begin
   ;
-end;  
+end;
 
 
-procedure TCanFdTxWin.ExecuteCmd(cmd: Integer; can_msg: PCanFdMsg);
-var tx_msg: TTxCanMsg;
+procedure TCanFdTxWin.UpdateTitle;
 
 begin;
+if SetupData.TxListFile = '' then
+  self.Caption := 'Senden'
+else
+  self.Caption := 'Senden - [' + ExtractFileName(SetupData.TxListFile) + ']';
+end;
+
+
+function TCanFdTxWin.ExecuteCmd(cmd: Longword; can_msg: PCanFdMsg; param1: Integer): Integer;
+var tx_msg: TTxCanMsg;
+    tx_msg_ptr: PTxCanMsg;
+
+begin;
+result := 0;
 case cmd of
   TX_WIN_SAVE  : begin;
                  if TxList.Count = 0 then
@@ -706,21 +662,22 @@ case cmd of
                    MessageDlg('Keine Daten zum Speichern!', mtError, [mbOk], 0);
                    exit;
                    end;
-                 SaveDialog.FileName := TxListFile;
+                 SaveDialog.FileName := SetupData.TxListFile;
                  if SaveDialog.Execute then
                    begin;
-                   TxListFile := SaveDialog.FileName;
-                   if length(TxListFile) > 0 then
-                     TxList.SaveToFile(TxListFile);
+                   SetupData.TxListFile := SaveDialog.FileName;
+                   if length(SetupData.TxListFile) > 0 then
+                     TxList.SaveToFile(SetupData.TxListFile);
                    end;
+                 UpdateTitle;
                  end;
   TX_WIN_LOAD  : begin;
-                 OpenDialog.FileName := TxListFile;
+                 OpenDialog.FileName := SetupData.TxListFile;
                  if OpenDialog.Execute then
                    begin;
-                   TxListFile := OpenDialog.FileName;
-                   if length(TxListFile) > 0 then
-                     TxList.LoadFromFile(TxListFile);
+                   SetupData.TxListFile := OpenDialog.FileName;
+                   if length(SetupData.TxListFile) > 0 then
+                     TxList.LoadFromFile(SetupData.TxListFile);
                    end;
                  TxView.RowCount := TxList.Count + 1;
                  TxView.Row := 1;
@@ -729,6 +686,7 @@ case cmd of
                  else
                    SetMsgToUi(nil);
                  TxView.Refresh;
+                 UpdateTitle;
                  end;
   TX_WIN_CLEAR : begin;
                  TxList.Clear;
@@ -749,7 +707,7 @@ case cmd of
                  begin;
                  if TxList <> nil then
                    begin;
-                   EmptyMessage(@tx_msg);
+                   TxList.EmptyMessage(@tx_msg);
                    Move(can_msg^, tx_msg.CanMsg, SizeOf(TCanFdMsg));
                    TxList.Add(@tx_msg);
                    TxView.RowCount := TxList.Count+1;
@@ -757,7 +715,44 @@ case cmd of
                    SetMsgToUi(TxList.Items[TxView.Row-1]);
                    TxView.Refresh;
                    end;
+                 end; 
+  TX_WIN_UPDATE_MSG :
+                 begin;
+                 if TxList <> nil then
+                   begin;
+                   tx_msg_ptr := TxList.Items[param1];
+                   if tx_msg_ptr <> nil then
+                     begin;
+                     SetMsgToUi(tx_msg_ptr);
+                     TxView.Refresh;
+                     end;
+                   end;
                  end;
+  TX_WIN_SAVE_FILE :
+                 begin;
+                 if TxList.Count = 0 then
+                   exit;
+                 if length(SetupData.TxListFile) > 0 then
+                   TxList.SaveToFile(SetupData.TxListFile);
+                 UpdateTitle;
+                 end;
+  TX_WIN_LOAD_FILE :
+                 begin;
+                 if length(SetupData.TxListFile) > 0 then
+                   begin;
+                   if TxList.LoadFromFile(SetupData.TxListFile) > 0 then
+                     begin;
+                     TxView.RowCount := TxList.Count + 1;
+                     TxView.Row := 1;
+                     if TxView.Row <= TxList.Count then
+                       SetMsgToUi(TxList.Items[TxView.Row-1])
+                     else
+                       SetMsgToUi(nil);
+                     TxView.Refresh;
+                     end;
+                   end;
+                 UpdateTitle;
+                 end;                                   
   end;
 end;
 

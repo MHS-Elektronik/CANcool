@@ -1,9 +1,19 @@
 unit A3nalogGauge;
+
+{$IFDEF FPC}
+  {$MODE Delphi}
+{$ENDIF}
+
 {$DEFINE TICKER}
 interface
 
 uses
-  Windows, Messages, SysUtils, Classes, Graphics, Controls;
+{$IFnDEF FPC}
+  Messages, WinProcs, WinTypes,
+{$ELSE}
+  LResources, LCLIntf, LCLType,
+{$ENDIF}
+  Windows, SysUtils, Classes, Graphics, Controls;
 
 type
   TStyle = (LeftStyle, RightStyle, CenterStyle);

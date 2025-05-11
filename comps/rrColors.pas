@@ -79,15 +79,26 @@
  ************************************************************************)
 unit rrColors;
 
+{$IFDEF FPC}
+  {$MODE Delphi}
+{$ENDIF}
+
 interface
 
-{$WARN UNSAFE_TYPE OFF}
-{$WARN UNSAFE_CODE OFF}
-{$WARN UNSAFE_CAST OFF}
+{$IFnDEF FPC}
+  {$WARN UNSAFE_TYPE OFF}
+  {$WARN UNSAFE_CODE OFF}
+  {$WARN UNSAFE_CAST OFF}
+{$ENDIF}
 
 uses
   SysUtils,
   Windows,
+{$IFnDEF FPC}
+  WinProcs, WinTypes,
+{$ELSE}
+  LResources, LCLIntf, LCLType,
+{$ENDIF}  
   Classes,
 {$IFNDEF VER100_up}
   Controls,
@@ -129,7 +140,11 @@ function SetBitmapColors(Bmp: TBitmap;Colors: array of TColor;StartIndex: Intege
 {$ENDIF}
 implementation
 
+{$IFnDEF FPC}
 uses Consts;
+{$ELSE}
+uses RtlConsts;
+{$ENDIF}
 
 type
   PRGBTripleArray = ^TRGBTripleArray;
@@ -146,7 +161,8 @@ begin
 {$IFDEF VER100_up}
   raise EOutOfResources.Create(SOutOfResources);
 {$ELSE}
-  raise EOutOfResources.CreateRes(SOutOfResources);
+  //raise EOutOfResources.CreateRes(SOutOfResources);
+  raise EOutOfResources.Create(SOutOfResources);
 {$ENDIF}
 end;
 

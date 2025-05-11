@@ -1,12 +1,20 @@
 unit XLAbout;
 
+{$IFDEF FPC}
+  {$MODE Delphi}
+{$ENDIF}
+
 interface
 
-{$WARN UNSAFE_TYPE OFF}
-{$WARN UNSAFE_CODE OFF}
+{$WARN SYMBOL_DEPRECATED OFF}
+{$IFnDEF FPC}
+  {$WARN UNSAFE_TYPE OFF}
+  {$WARN UNSAFE_CODE OFF}
+{$ENDIF}
 
+// Messages <*> Delphi rein ?
 uses
-  SysUtils, Windows, Messages, Classes, Graphics, Controls,
+  SysUtils, Windows, Classes, Graphics, Controls,
   Forms, Dialogs, StdCtrls, Buttons, ExtCtrls, ComCtrls;
 
 type
@@ -44,7 +52,11 @@ implementation
 
 uses ShellAPI;
 
-{$R *.DFM}
+{$IFnDEF FPC}
+  {$R *.dfm}
+{$ELSE}
+  {$R *.lfm}
+{$ENDIF}
 
 function TXLAboutBox.Regkey(Key: HKEY; Subkey: string; var Data: string): Longint;
 var

@@ -1,6 +1,6 @@
 object CanTxWin: TCanTxWin
-  Left = 221
-  Top = 1590
+  Left = 196
+  Top = 258
   Width = 1053
   Height = 314
   BorderIcons = [biSystemMenu, biMinimize]
@@ -19,7 +19,6 @@ object CanTxWin: TCanTxWin
   Visible = True
   OnClose = FormClose
   OnCreate = FormCreate
-  OnDestroy = FormDestroy
   OnShow = FormShow
   PixelsPerInch = 110
   TextHeight = 16
@@ -120,11 +119,11 @@ object CanTxWin: TCanTxWin
       Caption = 'Trigger ID'
     end
     object Label7: TLabel
-      Left = 591
+      Left = 583
       Top = 89
-      Width = 69
+      Width = 75
       Height = 16
-      Caption = 'Period (ms)'
+      Caption = 'Intervall (ms)'
     end
     object MsgAddBtn: TBitBtn
       Left = 798
@@ -326,7 +325,7 @@ object CanTxWin: TCanTxWin
         Top = 20
         Width = 112
         Height = 22
-        Caption = 'RTR Packet'
+        Caption = 'RTR Paket'
         TabOrder = 0
       end
       object EFFCheck: TCheckBox
@@ -345,7 +344,7 @@ object CanTxWin: TCanTxWin
       Top = 30
       Width = 119
       Height = 24
-      Number = 0
+      Number = 234881024
       ZahlenFormat = HexFormat
       IdShowing = False
       BinMode = Z32AutoMode
@@ -384,7 +383,7 @@ object CanTxWin: TCanTxWin
       Top = 54
       Width = 119
       Height = 24
-      Number = 0
+      Number = 234881024
       ZahlenFormat = HexFormat
       IdShowing = False
       BinMode = Z32AutoMode

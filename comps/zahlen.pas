@@ -1,9 +1,11 @@
 {***************************************************************************
                           zahlen.pas  -  description
-                             -------------------   
-    copyright         : (C) 2000 MHS-Elektronik GmbH & Co. KG, Germany
+                             -------------------
+    begin             : 19.06.2022                                        
+    last modify       : 05.04.2023							    
+    copyright         : (C) 2022 - 2023 MHS-Elektronik GmbH & Co. KG, Germany
                                http://www.mhs-elektronik.de    
-    autho             : Klaus Demlehner, klaus@mhs-elektronik.de
+    author            : Klaus Demlehner, klaus@mhs-elektronik.de
  ***************************************************************************}
 
 {***************************************************************************
@@ -15,14 +17,25 @@
  ***************************************************************************}
 unit zahlen;
 
+{$IFDEF FPC}
+  {$MODE Delphi}
+{$ENDIF}
+
 interface
 
-{$WARN SYMBOL_DEPRECATED OFF}
-{$WARN UNSAFE_TYPE OFF}
-{$WARN UNSAFE_CODE OFF}
+{$IFnDEF FPC}
+  {$WARN SYMBOL_DEPRECATED OFF}
+  {$WARN UNSAFE_TYPE OFF}
+  {$WARN UNSAFE_CODE OFF}
+{$ENDIF}
 
 uses
-  SysUtils, WinTypes, WinProcs, Messages, Classes, Graphics, Controls,
+{$IFnDEF FPC}
+  WinProcs, WinTypes,
+{$ELSE}
+  LResources, LCLIntf, LCLType, LMessages,
+{$ENDIF}
+  SysUtils, Messages, Classes, Graphics, Controls,
   Forms, StdCtrls;
 
 const
@@ -70,7 +83,9 @@ type
     property BorderStyle;
     property CharCase;
     property Color;
+{$IFnDEF FPC}
     property Ctl3D;
+{$ENDIF}
     property DragCursor;
     property DragMode;
     property Enabled;
@@ -79,7 +94,9 @@ type
     property MaxLength;
    { property OEMConvert; }
     property ParentColor;
+{$IFnDEF FPC}
     property ParentCtl3D;
+{$ENDIF}
     property ParentFont;
     property ParentShowHint;
    { property PasswordChar; }
@@ -115,6 +132,9 @@ implementation
 
 procedure Register;
 begin
+{$IFDEF FPC}
+  {$I zahlen.lrs}
+{$ENDIF} 
   RegisterComponents('MHS', [TZahlenEdit]);
 end;
 

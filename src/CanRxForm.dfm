@@ -1,6 +1,6 @@
 object CanRxWin: TCanRxWin
-  Left = 476
-  Top = 1616
+  Left = 345
+  Top = 1795
   Width = 709
   Height = 296
   BorderIcons = [biSystemMenu, biMinimize]
@@ -35,7 +35,7 @@ object CanRxWin: TCanRxWin
     RowCount = 2
     Font.Charset = DEFAULT_CHARSET
     Font.Color = clWindowText
-    Font.Height = -15
+    Font.Height = -31
     Font.Name = 'Courier New'
     Font.Style = []
     ParentFont = False

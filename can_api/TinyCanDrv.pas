@@ -1,6 +1,9 @@
 { *********** TINY - CAN Treiber **************                          }
-{ Copyright (C) 2009 - 2019 Klaus Demlehner (klaus@mhs-elektronik.de)    }
-{     www.mhs-elektronik.de                                              }
+{  begin             : 01.02.2017                                        }
+{  last modify       : 01.08.2022                                        }
+{  copyright         : (C) 2017 - 2022 by MHS-Elektronik GmbH & Co. KG   }
+{                             http://www.mhs-elektronik.de               }
+{  author            : Klaus Demlehner, klaus@mhs-elektronik.de          }
 {                                                                        }
 { This program is free software; you can redistribute it and/or modify   }
 { it under the terms of the GNU General Public License as published by   }
@@ -20,6 +23,7 @@ unit TinyCanDrv;
 
 interface
 
+
 {$WARN SYMBOL_DEPRECATED OFF}
 {$IFNDEF VER140}
   {$WARN UNSAFE_TYPE OFF}
@@ -27,12 +31,9 @@ interface
 {$ENDIF}
 
 uses
-  Windows, SysUtils, Messages, Classes, ComCtrls, Forms, Controls, Registry;
+  Windows, SysUtils, Messages, Classes, ComCtrls, Forms, Controls, Registry, Contnrs;
 
-const
-  CM_CAN_PNP_EVENT = WM_USER + 100;
-  CM_CAN_STATUS_EVENT = WM_USER + 101;
-  CM_CAN_RXD_EVENT = WM_USER + 102;
+const 
   // ***** CAN-FD Flags
   FlagCanFdTxD: Word    = ($0001);  // TxD -> 1 = Tx CAN Nachricht, 0 = Rx CAN Nachricht
   FlagCanFdError: Word  = ($0002);  // Error -> 1 = CAN Bus Fehler Nachricht
@@ -62,6 +63,7 @@ const
 
   INDEX_CAN_KANAL_A: DWORD      = ($00000000);
   INDEX_CAN_KANAL_B: DWORD      = ($00010000);
+  INDEX_INVALID: DWORD          = ($FFFFFFFF);
 
   CAN_CMD_NONE: Word              = ($0000);
   CAN_CMD_RXD_OVERRUN_CLEAR: Word = ($0001);
@@ -88,6 +90,14 @@ const
   EVENT_DISABLE_ALL: Word                = ($FF00);
 
   MHS_EVENT_TERMINATE: DWORD             = ($80000000);
+  
+  // MHS (EV)ent (S)ource
+  MHS_EVS_STATUS: DWORD                  = (1);
+  MHS_EVS_PNP: DWORD                     = (2);
+  MHS_EVS_OBJECT: DWORD                  = (3); 
+  MHS_EVS_DIN: DWORD                     = (4);
+  MHS_EVS_ENC: DWORD                     = (5);
+  MHS_EVS_KEY: DWORD                     = (6);
 
   TCAN_LOG_MESSAGE: DWORD                = ($00000001);
   TCAN_LOG_STATUS: DWORD                 = ($00000002);
@@ -101,6 +111,31 @@ const
   TCAN_LOG_DEBUG: DWORD                  = ($08000000);
   TCAN_LOG_WITH_TIME: DWORD              = ($40000000);
   TCAN_LOG_DISABLE_SYNC: DWORD           = ($80000000);
+  
+  DELPHI_RX_EVENT: DWORD                 = ($00000001);
+  DELPHI_PNP_EVENT: DWORD                = ($00000002);
+  DELPHI_STATUS_EVENT: DWORD             = ($00000004);
+  DELPHI_RX_FILTER_EVENT: DWORD          = ($00000008);
+  
+  // <*>
+  TCAN_INFO_KEY_OPEN_INDEX: DWORD    = ($01000001);
+  TCAN_INFO_KEY_HARDWARE_ID: DWORD   = ($01000002);
+  TCAN_INFO_KEY_HARDWARE: DWORD      = ($01000003);
+  TCAN_INFO_KEY_VENDOR: DWORD        = ($01000004);
+  TCAN_INFO_KEY_DEVICE_NAME: DWORD   = ($01000005);
+  TCAN_INFO_KEY_SERIAL_NUMBER: DWORD = ($01000006);
+  TCAN_INFO_KEY_FEATURES: DWORD      = ($01000007);
+  TCAN_INFO_KEY_CAN_CHANNELS: DWORD  = ($01000008);
+  TCAN_INFO_KEY_RX_FILTER_CNT: DWORD = ($01000009); 
+  TCAN_INFO_KEY_TX_BUFFER_CNT: DWORD = ($0100000A);
+  TCAN_INFO_KEY_CAN_CLOCKS: DWORD    = ($0100000B);
+  TCAN_INFO_KEY_CAN_CLOCK1: DWORD    = ($0100000C);
+  TCAN_INFO_KEY_CAN_CLOCK2: DWORD    = ($0100000D);
+  TCAN_INFO_KEY_CAN_CLOCK3: DWORD    = ($0100000E);
+  TCAN_INFO_KEY_CAN_CLOCK4: DWORD    = ($0100000F);
+  TCAN_INFO_KEY_API_VERSION: DWORD   = ($02000001);
+  TCAN_INFO_KEY_DLL: DWORD           = ($02000002);
+  TCAN_INFO_KEY_CFG_APP: DWORD       = ($02000003);
   
   {#define DEV_LIST_SHOW_TCAN_ONLY 0x01
   #define DEV_LIST_SHOW_UNCONNECT 0x02
@@ -121,14 +156,23 @@ const
                                       800,   // 800 kBit/s
                                       1000); // 1 MBit/s
 
-   CanFdSpeedTab: array[0..7] of Word = (0,      // Cusom Speed
+   CanFdSpeedTab: array[0..16] of Word = (0,     // Cusom Speed
+                                         125,    // 125 kBit/s
                                          250,    // 250 kBit/s
                                          500,    // 500 kBit/s                                         
                                          1000,   // 1 MBit/s
                                          1500,   // 1,5 MBit/s
                                          2000,   // 2 MBit/s
                                          3000,   // 3 MBit/s
-                                         4000);  // 4 MBit/s
+                                         4000,   // 4 MBit/s
+                                         5000,   // 5 MBit/s 
+                                         6000,   // 6 MBit/s 
+                                         7000,   // 7 MBit/s 
+                                         8000,   // 8 MBit/s 
+                                         9000,   // 9 MBit/s 
+                                         10000,  // 10 MBit/s
+                                         11000,  // 11 MBit/s
+                                         12000); // 12 MBit/s                                         
    
    BaudRateTab: array[0..18] of DWord = (0,
                                          4800,
@@ -156,7 +200,8 @@ const
   
 // EX-API Konstanten
 // (V)alue (T)ype
-MhsValueTypeTab: array[0..23] of DWord = ($01,  // VT_BYTE
+MhsValueTypeTab: array[0..26] of DWord = ($00,  // VT_ANY
+                                          $01,  // VT_BYTE
                                           $02,  // VT_UBYTE      
                                           $03,  // VT_WORD       
                                           $04,  // VT_UWORD      
@@ -164,7 +209,7 @@ MhsValueTypeTab: array[0..23] of DWord = ($01,  // VT_BYTE
                                           $06,  // VT_ULONG      
                                           $07,  // VT_BYTE_ARRAY 
                                           $08,  // VT_UBYTE_ARRAY
-                                          $09,  // VT_WORD_ARRAY 
+                                          $09,  // VT_WORD_ARRAY
                                           $0A,  // VT_UWORD_ARRAY
                                           $0B,  // VT_LONG_ARRAY
                                           $0C,  // VT_ULONG_ARRAY
@@ -179,14 +224,16 @@ MhsValueTypeTab: array[0..23] of DWord = ($01,  // VT_BYTE
                                           $42,  // VT_HLONG  
                                           $80,  // VT_STREAM 
                                           $81,  // VT_STRING 
-                                          $82); // VT_POINTER
+                                          $82,  // VT_POINTER
+                                          $83,  // REVISION
+                                          $84); // DATE 
 
 type
 EDllLoadError = class(Exception);
 
 // CAN Übertragungsgeschwindigkeit
-TCanFdSpeed = (FD_CUSTOM_SPEED, FD_250K_BIT, FD_500K_BIT, FD_1M_BIT, FD_1M5_BIT, FD_2M_BIT, FD_3M_BIT,
-               FD_4M_BIT);
+TCanFdSpeed = (FD_CUSTOM_SPEED, FD_125K_BIT, FD_250K_BIT, FD_500K_BIT, FD_1M_BIT, FD_1M5_BIT, FD_2M_BIT, FD_3M_BIT,
+               FD_4M_BIT, FD_5M_BIT, FD_6M_BIT, FD_7M_BIT, FD_8M_BIT, FD_9M_BIT, FD_10M_BIT, FD_11M_BIT, FD_12M_BIT);
                
 TCanSpeed = (CAN_CUSTOM_SPEED,CAN_10K_BIT, CAN_20K_BIT, CAN_50K_BIT, CAN_100K_BIT, CAN_125K_BIT,
              CAN_250K_BIT, CAN_500K_BIT, CAN_800K_BIT, CAN_1M_BIT);
@@ -197,7 +244,7 @@ TSerialBaudRate = (SER_AUTO_BAUD, SER_4800_BAUD, SER_9600_BAUD, SER_10k4_BAUD,
                    SER_230k4_BAUD, SER_250k_BAUD, SER_460k8_BAUD, SER_500k_BAUD,
                    SER_921k6_BAUD, SER_1M_BAUD, SER_3M_BAUD);
 
-TEventMask = (PNP_CHANGE_EVENT, STATUS_CHANGE_EVENT, RX_FILTER_MESSAGES_EVENT,
+TEventMask = (CAN_TIMEOUT_EVENT, PNP_CHANGE_EVENT, STATUS_CHANGE_EVENT, RX_FILTER_MESSAGES_EVENT,
               RX_MESSAGES_EVENT);
 TEventMasks = set of TEventMask;
 TInterfaceType = (INTERFACE_USB, INTERFACE_SERIEL);
@@ -247,18 +294,20 @@ PCanFifoStatus = ^TCanFifoStatus;
 
 // EX-API Typen definitionen
 // (V)alue (T)ype
-TMhsValueType = (VT_BYTE, VT_UBYTE, VT_WORD, VT_UWORD, VT_LONG, VT_ULONG, VT_BYTE_ARRAY,
+TMhsValueType = (VT_ANY, VT_BYTE, VT_UBYTE, VT_WORD, VT_UWORD, VT_LONG, VT_ULONG, VT_BYTE_ARRAY,
                  VT_UBYTE_ARRAY, VT_WORD_ARRAY, VT_UWORD_ARRAY, VT_LONG_ARRAY, VT_ULONG_ARRAY,
                  VT_BYTE_RANGE_ARRAY, VT_UBYTE_RANGE_ARRAY, VT_WORD_RANGE_ARRAY,
                  VT_UWORD_RANGE_ARRAY, VT_LONG_RANGE_ARRAY, VT_ULONG_RANGE_ARRAY, VT_HBYTE,
-                 VT_HWORD, VT_HLONG, VT_STREAM, VT_STRING, VT_POINTER);
+                 VT_HWORD, VT_HLONG, VT_STREAM, VT_STRING, VT_POINTER, VT_REVISION, VT_DATE);
+
+TIdFilterMode = (CAN_FILTER_MASKE_CODE, CAN_FILTER_START_STOP, CAN_FILTER_SINGLE_ID);
 
 {/******************************************/}
 {/*            CAN Message Type            */}
 {/******************************************/}
 TCanData = packed record
   case Integer of
-    0: (Chars: array[0..7] of Char);
+    0: (Chars: array[0..7] of AnsiChar);
     1: (Bytes: array[0..7] of Byte);
     2: (Words: array[0..3] of Word);
     3: (Longs: array[0..1] of DWORD);
@@ -284,7 +333,7 @@ TCanMsg = packed record
 {/******************************************/}
 TCanFdData = packed record
   case Integer of
-    0: (Chars: array[0..63] of Char);
+    0: (Chars: array[0..63] of AnsiChar);
     1: (Bytes: array[0..63] of Byte);
     2: (Words: array[0..31] of Word);
     3: (Longs: array[0..15] of DWORD);
@@ -299,19 +348,28 @@ TCanFdMsg = packed record
   Data: TCanFdData;
   Time: TCanTime;
   end;
- PCanFdMsg = ^TCanFdMsg;  
+PCanFdMsg = ^TCanFdMsg;  
 
 {/******************************************/}
 {/*         CAN Message Filter Type        */}
 {/******************************************/}
-TMsgFilter = packed record
+TMsgFilterDrv = packed record
   Maske: DWORD;
   Code: DWORD;
   Flags: DWORD;
   Data: TCanData;
   end;
-PMsgFilter = ^TMsgFilter;
+PMsgFilterDrv = ^TMsgFilterDrv;
 
+TMsgFilter = record
+  Code_Start_Id: DWORD;
+  Maske_Stop: DWORD;
+  Enabled: Boolean;  
+  RTR: Boolean;            // remote transmition request bit
+  EFF: Boolean;            // extended frame bit
+  PurgeMessage: Boolean;    
+  IdMode: TIdFilterMode;
+  end;
 
 {/******************************************/}
 {/*             Device Status              */}
@@ -349,59 +407,119 @@ TModulFeatures = packed record
   HwTxPufferCount: DWORD;    // Anzahl der zur Verfügung stehenden Transmit Puffer mit Timer
   end;
 
-TCanDevicesList = packed record
+TCanDevicesList = record
   TCanIdx: DWORD;                     // Ist das Device geöffnet ist der Wert auf dem Device-Index
                                       // gesetzt, ansonsten ist der Wert auf "INDEX_INVALID" gesetzt.
   HwId: DWORD;                        // Ein 32 Bit Schlüssel der die Hardware eindeutig Identifiziert.
                                       // Manche Module müssen erst geöffnet werden damit dieser Wert
                                       // gesetzt wird
-  DeviceName: array[0..254] of Char;  // Nur Linux: entspricht den Device Namen des USB-Devices,
+  DeviceName: String[255];            // Nur Linux: entspricht den Device Namen des USB-Devices,
                                       //            z.B. /dev/ttyUSB0
-  SerialNumber: array[0..15] of Char; // Seriennummer des Moduls
-  Description: array[0..63] of Char;  // Modul Bezeichnung, z.B. "Tiny-CAN IV-XL",
+  SerialNumber: String[16];           // Seriennummer des Moduls
+  Description: String[64];            // Modul Bezeichnung, z.B. "Tiny-CAN IV-XL",
                                       // muss in den USB-Controller programmiert sein,
                                       // was zur Zeit nur bei den Modulen Tiny-CAN II-XL,
                                       // IV-XL u. M1 der Fall ist.
   ModulFeatures: TModulFeatures;      // Unterstützte Features des Moduls, nur gültig
                                       // wenn HwId > 0
   end;
-PCanDevicesList = ^TCanDevicesList; 
+PCanDevicesList = ^TCanDevicesList;
 
-TCanDeviceInfo = packed record
-  HwId: DWORD;                        // Ein 32 Bit Schlüssel der die Hardware eindeutig Identifiziert.
-  FirmwareVersion: DWORD;             // Version der Firmware des Tiny-CAN Moduls
-  FirmwareInfo: DWORD;                // Informationen zum Stand der Firmware Version
-                                      //   0 = Unbekannt
-                                      //   1 = Firmware veraltet, Device kann nicht geöffnet werden
-                                      //   2 = Firmware veraltet, Funktionsumfang eingeschränkt
-                                      //   3 = Firmware veraltet, keine Einschränkungen
-                                      //   4 = Firmware auf Stand
-                                      //   5 = Firmware neuer als Erwartet
-  SerialNumber: array[0..15] of Char; // Seriennummer des Moduls
-  Description: array[0..63] of Char;  // Modul Bezeichnung, z.B. "Tiny-CAN IV-XL"
-  ModulFeatures: TModulFeatures;      // Unterstützte Features des Moduls
+
+TCanDevicesListDev = packed record
+  TCanIdx: DWORD;                         // Ist das Device geöffnet ist der Wert auf dem Device-Index
+                                          // gesetzt, ansonsten ist der Wert auf "INDEX_INVALID" gesetzt.
+  HwId: DWORD;                            // Ein 32 Bit Schlüssel der die Hardware eindeutig Identifiziert.
+                                          // Manche Module müssen erst geöffnet werden damit dieser Wert
+                                          // gesetzt wird
+  DeviceName: array[0..254] of AnsiChar;  // Nur Linux: entspricht den Device Namen des USB-Devices,
+                                          //            z.B. /dev/ttyUSB0
+  SerialNumber: array[0..15] of AnsiChar; // Seriennummer des Moduls
+  Description: array[0..63] of AnsiChar;  // Modul Bezeichnung, z.B. "Tiny-CAN IV-XL",
+                                          // muss in den USB-Controller programmiert sein,
+                                          // was zur Zeit nur bei den Modulen Tiny-CAN II-XL,
+                                          // IV-XL u. M1 der Fall ist.
+  ModulFeatures: TModulFeatures;          // Unterstützte Features des Moduls, nur gültig
+                                          // wenn HwId > 0
+  end;
+PCanDevicesListDev = ^TCanDevicesListDev; 
+
+
+TCanDeviceInfo = record
+  HwId: DWORD;                            // Ein 32 Bit Schlüssel der die Hardware eindeutig Identifiziert.
+  FirmwareVersion: DWORD;                 // Version der Firmware des Tiny-CAN Moduls
+  FirmwareInfo: DWORD;                    // Informationen zum Stand der Firmware Version
+                                          //   0 = Unbekannt
+                                          //   1 = Firmware veraltet, Device kann nicht geöffnet werden
+                                          //   2 = Firmware veraltet, Funktionsumfang eingeschränkt
+                                          //   3 = Firmware veraltet, keine Einschränkungen
+                                          //   4 = Firmware auf Stand
+                                          //   5 = Firmware neuer als Erwartet
+  SerialNumber: String[16];               // Seriennummer des Moduls
+  Description: String[64];                // Modul Bezeichnung, z.B. "Tiny-CAN IV-XL"
+  ModulFeatures: TModulFeatures;          // Unterstützte Features des Moduls
   end;
 PCanDeviceInfo = ^TCanDeviceInfo;
 
-TCanInfoVar = packed record   
-  Key: DWORD;                  // Variablen Schlüssel
-  ValueType: DWORD;            // Variablen Type
-  Size: DWORD;                 // (Max)Größe der Variable in Byte
-  Data: array[0..254] of Char; // Wert der Variable
+TCanDeviceInfoDev = packed record
+  HwId: DWORD;                            // Ein 32 Bit Schlüssel der die Hardware eindeutig Identifiziert.
+  FirmwareVersion: DWORD;                 // Version der Firmware des Tiny-CAN Moduls
+  FirmwareInfo: DWORD;                    // Informationen zum Stand der Firmware Version
+                                          //   0 = Unbekannt
+                                          //   1 = Firmware veraltet, Device kann nicht geöffnet werden
+                                          //   2 = Firmware veraltet, Funktionsumfang eingeschränkt
+                                          //   3 = Firmware veraltet, keine Einschränkungen
+                                          //   4 = Firmware auf Stand
+                                          //   5 = Firmware neuer als Erwartet
+  SerialNumber: array[0..15] of AnsiChar; // Seriennummer des Moduls
+  Description: array[0..63] of AnsiChar;  // Modul Bezeichnung, z.B. "Tiny-CAN IV-XL"
+  ModulFeatures: TModulFeatures;          // Unterstützte Features des Moduls
+  end;
+PCanDeviceInfoDev = ^TCanDeviceInfoDev;
+
+
+TCanInfoVarDate = record
+  D:DWORD;
+  M:DWORD;
+  Y:DWORD;
+  end;
+
+TCanInfoVarVer = record
+  Major: DWORD;
+  Minor: DWORD;
+  Revision: DWORD; 
+  end;
+ 
+TCanInfoValue = record
+  case byte of 
+    0: (I8Value: AnsiChar);
+    1: (U8Value: Byte);
+    2: (I16Value: Smallint);
+    3: (U16Value: Word);
+    4: (I32Value: Longint);
+    5: (U32Value: DWord);
+    6: (StrValue: String[255]);
+    7: (DateValue: TCanInfoVarDate);
+    8: (VerValue: TCanInfoVarVer);
+  end;
+
+TCanInfoVar = record
+  Key: DWORD;                      // Variablen Schlüssel
+  ValueType: TMhsValueType;        // Variablen Type
+  Size: DWORD;                     // (Max)Größe der Variable in Byte
+  Value: TCanInfoValue;
+  ValueStr: String[80];
   end;
 PCanInfoVar = ^TCanInfoVar;
 
-{/***************************************************************/}
-{/*  Treiber Callback-Funktionen                                */}
-{/***************************************************************/}
-TF_CanPnPEventCallback = procedure(index: DWORD; status: Integer); stdcall;
-PF_CanPnPEventCallback = ^TF_CanPnPEventCallback;
+TCanInfoVarDev = packed record
+  Key: DWORD;                      // Variablen Schlüssel
+  ValueType: DWORD;                // Variablen Type
+  Size: DWORD;                     // (Max)Größe der Variable in Byte
+  Data: array[0..254] of Byte;     // Wert der Variable
+  end;
+PCanInfoVarDev = ^TCanInfoVarDev;
 
-TF_CanStatusEventCallback = procedure(index: DWORD; device_status_drv: PDeviceStatusDrv); stdcall;
-PF_CanStatusEventCallback = ^TF_CanStatusEventCallback;
-
-TF_CanRxEventCallback = procedure(index: DWORD; msg: PCanMsg; count: Integer); stdcall;
-PF_CanRxEventCallback = ^TF_CanRxEventCallback;
 
 {/***************************************************************/}
 {/*  Funktionstypen                                             */}
@@ -425,25 +543,19 @@ TF_CanSetSpeed = function(index: DWORD; speed: Word): Integer; stdcall;
 TF_CanSetSpeedUser = function(index: DWORD; value: DWORD): Integer; stdcall;
 TF_CanDrvInfo = function: PAnsiChar; stdcall;
 TF_CanDrvHwInfo = function(index: DWORD): PAnsiChar; stdcall;
-TF_CanSetFilter = function(index: DWORD; msg_filter: PMsgFilter): Integer; stdcall;
+TF_CanSetFilter = function(index: DWORD; msg_filter: PMsgFilterDrv): Integer; stdcall;
 
 TF_CanGetDeviceStatus = function(index: DWORD; status: PDeviceStatusDrv): Integer; stdcall;
-
-TF_CanSetPnPEventCallback = procedure(event_proc: PF_CanPnPEventCallback); stdcall;
-TF_CanSetStatusEventCallback = procedure(event_proc: PF_CanStatusEventCallback); stdcall;
-TF_CanSetRxEventCallback = procedure(event_proc: PF_CanRxEventCallback); stdcall;
 
 TF_CanSetEvents = procedure(events: Word); stdcall;
 TF_CanEventStatus = function:DWORD; stdcall;
 
 // EX-API
 TF_CanExGetDeviceCount = function(flags: Integer): Integer; stdcall;
-//int32_t CanExGetDeviceList(struct TCanDevicesList **devices_list, int32_t flags);
 TF_CanExGetDeviceListPerform = function(flags: Integer): Integer; stdcall;
-TF_CanExGetDeviceListGet = function(item: PCanDevicesList): Integer; stdcall;
-//int32_t CanExGetDeviceInfo(uint32_t index, struct TCanDeviceInfo *device_info, struct TCanInfoVar **hw_info, uint32_t *hw_info_size);
-TF_CanExGetDeviceInfoPerform = function(index: DWORD; device_info: PCanDeviceInfo): Integer; stdcall;
-TF_CanExGetDeviceInfoGet = function(item: PCanInfoVar): Integer; stdcall;
+TF_CanExGetDeviceListGet = function(item: PCanDevicesListDev): Integer; stdcall;
+TF_CanExGetDeviceInfoPerform = function(index: DWORD; device_info: PCanDeviceInfoDev): Integer; stdcall;
+TF_CanExGetDeviceInfoGet = function(item: PCanInfoVarDev): Integer; stdcall;
 
 TF_CanExCreateDevice = function(index: PDWORD; options: PAnsiChar): Integer; stdcall;
 TF_CanExDestroyDevice = function(index: PDWORD): Integer; stdcall;
@@ -457,7 +569,7 @@ TF_CanExResetEvent = procedure(event_obj: Pointer; event: DWORD); stdcall;
 TF_CanExWaitForEvent = function(event_obj: Pointer; timeout: DWORD): DWORD; stdcall;
 
 TF_CanExInitDriver = function(options: PAnsiChar): Integer; stdcall;
-TF_CanExSetOptions = function(index: DWORD; char: PAnsiChar; options: PAnsiChar): Integer; stdcall;
+TF_CanExSetOptions = function(index: DWORD; name: PAnsiChar; options: PAnsiChar): Integer; stdcall;
 TF_CanExSetAsByte = function(index: DWORD; name: PAnsiChar; value: shortint): Integer; stdcall;
 TF_CanExSetAsWord = function(index: DWORD; name: PAnsiChar; value: smallint): Integer; stdcall;
 TF_CanExSetAsLong = function(index: DWORD; name: PAnsiChar; value: Integer): Integer; stdcall;
@@ -475,40 +587,71 @@ TF_CanExGetAsStringCopy = function(index: DWORD; name: PAnsiChar; dest: PAnsiCha
 // **** CAN-FD
 TF_CanFdTransmit = function(index: DWORD; msg: PCanFdMsg; count: Integer): Integer; stdcall;
 TF_CanFdReceive = function(index: DWORD; msg: PCanFdMsg; count: Integer): Integer; stdcall;
+TF_CanExGetInfoListPerform = function(index: DWORD; name: PAnsiChar; flags: Integer): Integer; stdcall;
+TF_CanExGetInfoListGet = function(list_idx: DWORD; item: PCanInfoVarDev): Integer; stdcall;
+TF_MhsCanGetApiHandle = function(api_handle: PPointer): Integer; stdcall;
 
-TOnCanPnPEvent = procedure(Sender: TObject; index: DWORD; status: Integer) of Object;
+
+TOnCanTimeoutEvent = procedure(Sender: TObject) of Object;
+TOnCanPnPEvent = procedure(Sender: TObject) of Object;
 TOnCanStatusEvent = procedure(Sender: TObject; index: DWORD; device_status: TDeviceStatus) of Object;
 TOnCanRxDEvent = procedure(Sender: TObject; index: DWORD; msg: PCanMsg; count: Integer) of Object;
+TOnCanRxDFdEvent = procedure(Sender: TObject; index: DWORD; msg: PCanFdMsg; count: Integer) of Object;
+TOnCanRxDFilterEvent = procedure(Sender: TObject) of Object;
+
+
+TCanEventThread = class;
+
+TCanDevicesListObj = class(TList)
+  private
+    function Get(Index: Integer): PCanDevicesList;
+  public
+    destructor Destroy; override;
+    function Add(item: PCanDevicesList): Integer;
+    property Items[Index: Integer]: PCanDevicesList read Get; default;
+  end;
+
+TCanInfoVarObj = class(TList)
+  private
+    function Get(Index: Integer): PCanInfoVar;
+  public
+    destructor Destroy; override;
+    function Add(item: PCanInfoVar): Integer;
+    property Items[Index: Integer]: PCanInfoVar read Get; default;
+  end;
 
 TTinyCAN = class(TComponent)
   private
     FCanFifoOvClear: Boolean;
     FCanFifoOvMessages: Boolean;
     FFdMode: Boolean;
-    FExMode: Boolean;
+    FEventsEnable: Boolean;
     FTreiberName: String;
     FPort: Integer;
     FBaudRate: TSerialBaudRate;
     FCanSpeed: TCANSpeed;
     FCanSpeedBtr: DWord;
     FCanFdSpeed: TCanFdSpeed;
-    FCanFdDbtr: DWord; 
-    FEventMasks: TEventMasks;
+    FCanFdDbtr: DWord;
+    FCanClockIndex: Byte;     
     FInterfaceType: TInterfaceType;
     FPnPEnable: boolean;
     FAutoReOpen: boolean;
     FRxDFifoSize: Word;
     FTxDFifoSize: Word;
     FCanRxDBufferSize: Word;
-
+    RxMsgBuffer: PCanMsg;
+    RxFdMsgBuffer: PCanFdMsg;
+    FMinEventSleepTime: DWORD;
+    FNoEventTimeout: DWORD;
     FDeviceSnr: String;
+    FDeviceName: String;
     FCfgFile: String;
     FLogFile: String;
     FLogFlags: TLogFlags;
     FInitParameterStr: String;
     FOptionsStr: String;
     FOpenStr: String;
-    function CanInitDriver_Int(ex_mode: boolean; fd_mode: boolean): Integer;
     function GetLogFlags: DWORD;
     function TestApi(name: String): Boolean;
     function RegReadStringEntry(path, entry: String): String;
@@ -517,18 +660,37 @@ TTinyCAN = class(TComponent)
     procedure SetCanSpeedBtr(btr: DWord);
     procedure SetCanFdSpeed(speed: TCanFdSpeed);
     procedure SetCanFdDbtr(dbtr: DWord);
-    procedure SetEventMasks(value: TEventMasks);
-    procedure WndProc(var msg : TMessage);
+    procedure SetCanClockIndex(clock_idx: Byte);
+    procedure SyncCanTimeoutEvent;
+    procedure SyncCanPnPEvent;
+    procedure SyncCanStatusEvent;
+    procedure SyncCanRxDEvent;
+    procedure SyncCanRxDFilterEvent;    
+    procedure CanEventThreadTerminate;
+    function ValTypeConvert(t: Byte): TMhsValueType;
+    function GetWord(data_ptr: PByte): WORD;
+    function GetLong(data_ptr: PByte): DWORD;
+    function GetBCD(data: Byte): Byte;
+    function InfoVarGetDate(data_ptr: PByte): TCanInfoVarDate;
+    function InfoVarGetVersion(data_ptr: PByte): TCanInfoVarVer;
+    function CanInfoVarCreate(dev_item: PCanInfoVarDev): PCanInfoVar;
   public
+    FEventMasks: TEventMasks;
+    TinyCanEvent: Pointer;
+    DeviceIndex: DWORD;
+    CanEventThread: TCanEventThread;
+    FDeviceStatus: TDeviceStatus;
     { Events}
+    pmCanTimeoutEvent: TOnCanTimeoutEvent;
     pmCanPnPEvent: TOnCanPnPEvent;
     pmCanStatusEvent: TOnCanStatusEvent;
     pmCanRxDEvent: TOnCanRxDEvent;
+    pmCanRxDFdEvent: TOnCanRxDFdEvent;
+    pmCanRxDFilterEvent: TOnCanRxDFilterEvent;
 
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
 
-    function CanInitDriver: Integer;
     procedure CanDownDriver;
     function CanSetOptions: Integer;
     function CanDeviceOpen: Integer;
@@ -547,22 +709,20 @@ TTinyCAN = class(TComponent)
     function CanSetFdSpeed(index: DWORD; fd_speed: TCanFdSpeed; dbtr: DWORD): Integer;
     function CanDrvInfo: PAnsiChar;
     function CanDrvHwInfo(index: DWORD): PAnsiChar;
-    function CanSetFilter(index: DWORD; msg_filter: PMsgFilter): Integer;
+    function CanSetFilter(index: DWORD; msg_filter: TMsgFilter): Integer;
 
-    function CanGetDeviceStatus(index: DWORD; status: PDeviceStatus): Integer;
+    function CanGetDeviceStatus(index: DWORD; var status: TDeviceStatus): Integer;
 
-    procedure CanSetPnPEventCallback(event_proc: PF_CanPnPEventCallback);
-    procedure CanSetStatusEventCallback(event_proc: PF_CanStatusEventCallback);
-    procedure CanSetRxEventCallback(event_proc: PF_CanRxEventCallback);
-
-    procedure CanSetEvents(events: TEventMasks);
+    //procedure CanSetEvents(events: TEventMasks);<*>
     function CanEventStatus: DWORD;
-    // EX-API    
+    // EX-API
     function CanExGetDeviceCount(flags: Integer): Integer;
     function CanExGetDeviceListPerform(flags: Integer): Integer;
-    function CanExGetDeviceListGet(item: PCanDevicesList): Integer;
-    function CanExGetDeviceInfoPerform(index: DWORD; device_info: PCanDeviceInfo): Integer;
-    function CanExGetDeviceInfoGet(item: PCanInfoVar): Integer;
+    function CanExGetDeviceListGet(var item: TCanDevicesList): Integer;
+    function CanExGetDeviceList(flags: Integer): TCanDevicesListObj;
+    function CanExGetDeviceInfoPerform(index: DWORD; var device_info: TCanDeviceInfo): Integer;
+    function CanExGetDeviceInfoGet(item: PCanInfoVarDev): Integer;
+    function CanExGetDeviceInfo(index: DWORD; var device_info: TCanDeviceInfo): TCanInfoVarObj;
     function CanExCreateDevice(var index: DWORD; options: String): Integer;
     function CanExDestroyDevice(var index: DWORD): Integer;
     function CanExCreateFifo(index: DWORD; size: DWORD; event_obj: Pointer; event: DWORD; channels: DWORD): Integer;
@@ -573,9 +733,9 @@ TTinyCAN = class(TComponent)
     procedure CanExSetEventAll(event: DWORD);
     procedure CanExResetEvent(event_obj: Pointer; event: DWORD);
     function CanExWaitForEvent(event_obj: Pointer; timeout: DWORD): DWORD;
-    
-    function CanExInitDriver(options: PAnsiChar): Integer;
-    function CanExSetOptions(index: DWORD; char: String; options: String): Integer;
+
+    function CanExInitDriver: Integer;
+    function CanExSetOptions(index: DWORD; name: String; options: String): Integer;
     function CanExSetAsByte(index: DWORD; name: String; value: shortint): Integer;
     function CanExSetAsWord(index: DWORD; name: String; value: smallint): Integer;
     function CanExSetAsLong(index: DWORD; name: String; value: Integer): Integer;
@@ -584,16 +744,21 @@ TTinyCAN = class(TComponent)
     function CanExSetAsULong(index: DWORD; name: String; value: DWORD): Integer;
     function CanExSetAsString(index: DWORD; name: String; value: String): Integer;
     function CanExGetAsByte(index: DWORD; name: String; var value: shortint): Integer;
-    function CanExGetAsWord(index: DWORD; name: String; var value: smallint): Integer;   
-    function CanExGetAsLong(index: DWORD; name: String; var value: Integer): Integer;    
-    function CanExGetAsUByte(index: DWORD; name: String; var value: Byte): Integer;      
-    function CanExGetAsUWord(index: DWORD; name: String; var value: WORD): Integer;      
-    function CanExGetAsULong(index: DWORD; name: String; var value: DWORD): Integer;     
-    function CanExGetAsString(index: DWORD; name: String; var str: String): Integer;  
+    function CanExGetAsWord(index: DWORD; name: String; var value: smallint): Integer;
+    function CanExGetAsLong(index: DWORD; name: String; var value: Integer): Integer;
+    function CanExGetAsUByte(index: DWORD; name: String; var value: Byte): Integer;
+    function CanExGetAsUWord(index: DWORD; name: String; var value: WORD): Integer;
+    function CanExGetAsULong(index: DWORD; name: String; var value: DWORD): Integer;
+    function CanExGetAsString(index: DWORD; name: String; var str: String): Integer;
     // **** CAN-FD
     function CanFdTransmit(index: DWORD; msg: PCanFdMsg; count: Integer): Integer;
     function CanFdReceive(index: DWORD; msg: PCanFdMsg; count: Integer): Integer;
-  
+    // **** <*> neu
+    function CanExGetInfoListPerform(index: DWORD; name: PAnsiChar; flags: Integer): Integer;
+    function CanExGetInfoListGet(list_idx: DWORD; item: PCanInfoVarDev): Integer;
+    function CanExGetInfoList(index: DWORD; name: String; flags: Integer): TObjectList;
+    function MhsCanGetApiHandle(api_handle: PPointer): Integer;
+
     function LoadDriver: Integer;
     procedure DownDriver;
   published
@@ -601,7 +766,6 @@ TTinyCAN = class(TComponent)
     property CanFifoOvClear: Boolean read FCanFifoOvClear write FCanFifoOvClear default FALSE;
     property CanFifoOvMessages: Boolean read FCanFifoOvMessages write FCanFifoOvMessages default FALSE;
     property FdMode: Boolean read FFdMode write FFdMode default FALSE;
-    property ExMode: Boolean read FExMode write FExMode default FALSE;
     property TreiberName: String read FTreiberName write FTreiberName;
     property Port: Integer read FPort write FPort default 0;
     property BaudRate: TSerialBaudRate read FBaudRate write FBaudRate default SER_921k6_BAUD;
@@ -609,15 +773,20 @@ TTinyCAN = class(TComponent)
     property CanSpeedBtr: DWord read FCanSpeedBtr write SetCanSpeedBtr default 0;
     property CanFdSpeed: TCanFdSpeed read FCanFdSpeed write SetCanFdSpeed default FD_1M_BIT;
     property CanFdDbtr: DWord read FCanFdDbtr write SetCanFdDbtr default 0;
-    property EventMasks: TEventMasks read FEventMasks write SetEventMasks default [];
+    property CanClockIndex: Byte read FCanClockIndex write SetCanClockIndex default 0;
+    property EventMasks: TEventMasks read FEventMasks write FEventMasks default [];
+    property EventsEnable: Boolean read FEventsEnable write FEventsEnable default TRUE;
     property InterfaceType: TInterfaceType read FInterfaceType write FInterfaceType default INTERFACE_USB;
     property PnPEnable: boolean read FPnPEnable write FPnPEnable default true;
     property AutoReOpen: boolean read FAutoReOpen write FAutoReOpen default true;
     property RxDFifoSize: Word read FRxDFifoSize write FRxDFifoSize default 4096;
     property TxDFifoSize: Word read FTxDFifoSize write FTxDFifoSize default 255;
     property CanRxDBufferSize: Word read FCanRxDBufferSize write FCanRxDBufferSize default 50;
+    property MinEventSleepTime: DWORD read FMinEventSleepTime write FMinEventSleepTime default 0;
+    property NoEventTimeout: DWORD read FNoEventTimeout write FNoEventTimeout default 0;
 
     property DeviceSnr: String read FDeviceSnr write FDeviceSnr;
+    property DeviceName: String read FDeviceName write FDeviceName;
     property CfgFile: String read FCfgFile write FCfgFile;
     property LogFile: String read FLogFile write FLogFile;
     property LogFlags: TLogFlags read FLogFlags write FLogFlags default [];
@@ -625,16 +794,26 @@ TTinyCAN = class(TComponent)
     property OptionsStr: String read FOptionsStr write FOptionsStr;
     property OpenStr: String read FOpenStr write FOpenStr;
     { Events }
+    property OnCanTimeoutEvent: TOnCanTimeoutEvent read pmCanTimeoutEvent write pmCanTimeoutEvent;
     property OnCanPnPEvent: TOnCanPnPEvent read pmCanPnPEvent write pmCanPnPEvent;
     property OnCanStatusEvent: TOnCanStatusEvent read pmCanStatusEvent write pmCanStatusEvent;
     property OnCanRxDEvent: TOnCanRxDEvent read pmCanRxDEvent write pmCanRxDEvent;
+    property OnCanRxDFdEvent: TOnCanRxDFdEvent read pmCanRxDFdEvent write pmCanRxDFdEvent;
+    property OnCanRxDFilterEvent: TOnCanRxDFilterEvent read pmCanRxDFilterEvent write pmCanRxDFilterEvent;
   end;
 
+TCanEventThread = class(TThread)
+  private
+    Owner: TTinyCAN;
+  protected
+    procedure Execute; override;
+  public        
+    constructor Create(AOwner: TTinyCAN);
+    destructor Destroy; override;
+  end;
 
 procedure Register;
-procedure CanPnPEventCallback(index: DWORD; status: Integer); stdcall;
-procedure CanStatusEventCallback(index: DWORD; device_status_drv: PDeviceStatusDrv); stdcall;
-procedure CanRxEventCallback(index: DWORD; msg: PCanMsg; count: Integer); stdcall;
+
 
 
 implementation
@@ -662,9 +841,6 @@ var
   pmCanDrvHwInfo: TF_CanDrvHwInfo = nil;
   pmCanSetFilter: TF_CanSetFilter = nil;
   pmCanGetDeviceStatus: TF_CanGetDeviceStatus = nil;
-  pmCanSetPnPEventCallback: TF_CanSetPnPEventCallback = nil;
-  pmCanSetStatusEventCallback: TF_CanSetStatusEventCallback = nil;
-  pmCanSetRxEventCallback: TF_CanSetRxEventCallback = nil;
   pmCanSetEvents: TF_CanSetEvents = nil;
   pmCanEventStatus: TF_CanEventStatus = nil;
   // EX-API
@@ -675,7 +851,7 @@ var
   pmCanExGetDeviceInfoGet: TF_CanExGetDeviceInfoGet = nil;
   pmCanExCreateDevice: TF_CanExCreateDevice = nil; 
   pmCanExDestroyDevice: TF_CanExDestroyDevice = nil;
-  pmCanExCreateFifo: TF_CanExCreateFifo = nil;  
+  pmCanExCreateFifo: TF_CanExCreateFifo = nil;
   pmCanExBindFifo: TF_CanExBindFifo = nil;
   pmCanExCreateEvent: TF_CanExCreateEvent = nil;
   pmCanExSetObjEvent: TF_CanExSetObjEvent = nil;
@@ -695,20 +871,67 @@ var
   pmCanExGetAsByte: TF_CanExGetAsByte = nil;
   pmCanExGetAsWord: TF_CanExGetAsWord = nil;
   pmCanExGetAsLong: TF_CanExGetAsLong = nil;
-  pmCanExGetAsUByte: TF_CanExGetAsUByte = nil; 
-  pmCanExGetAsUWord: TF_CanExGetAsUWord = nil; 
+  pmCanExGetAsUByte: TF_CanExGetAsUByte = nil;
+  pmCanExGetAsUWord: TF_CanExGetAsUWord = nil;
   pmCanExGetAsULong: TF_CanExGetAsULong = nil; 
   pmCanExGetAsStringCopy: TF_CanExGetAsStringCopy = nil;
   // **** CAN-FD
   pmCanFdTransmit: TF_CanFdTransmit = nil;
   pmCanFdReceive: TF_CanFdReceive = nil;
+  pmCanExGetInfoListPerform: TF_CanExGetInfoListPerform = nil;
+  pmCanExGetInfoListGet: TF_CanExGetInfoListGet = nil;
+  pmMhsCanGetApiHandle: TF_MhsCanGetApiHandle = nil;
 
-  FIndex: DWORD;
-  FPnPStatus: Integer;
-  FDeviceStatus: TDeviceStatus;
-  FRxDMsgs: PCanMsg;
-  FRxDCount: Integer;
-  FWindowHandle : HWND;
+{ TCanDevicesListObj }
+
+function TCanDevicesListObj.Add(item: PCanDevicesList): Integer;
+
+begin
+Result := inherited Add(item);
+end;
+
+
+destructor TCanDevicesListObj.Destroy;
+var i: Integer;
+
+begin
+for i := 0 to Count - 1 do
+  FreeMem(Items[i]);
+inherited;
+end;
+
+
+function TCanDevicesListObj.Get(Index: Integer): PCanDevicesList;
+
+begin
+Result := PCanDevicesList(inherited Get(Index));
+end;
+
+
+{ TCanInfoVarObj }
+
+function TCanInfoVarObj.Add(item: PCanInfoVar): Integer;
+
+begin
+Result := inherited Add(item);
+end;
+
+
+destructor TCanInfoVarObj.Destroy;
+var i: Integer;
+
+begin
+for i := 0 to Count - 1 do
+  FreeMem(Items[i]);
+inherited;
+end;
+
+
+function TCanInfoVarObj.Get(Index: Integer): PCanInfoVar;
+
+begin
+Result := PCanInfoVar(inherited Get(Index));
+end;
 
 
 {**************************************************************}
@@ -718,7 +941,6 @@ constructor TTinyCAN.Create(AOwner: TComponent);
 
 begin;
 inherited Create(AOwner);
-FWindowHandle := AllocateHWnd(WndProc);
 FTreiberName := '';
 FPort := 0;
 FBaudRate := SER_921k6_BAUD;
@@ -727,11 +949,14 @@ FEventMasks := [];
 FInterfaceType := INTERFACE_USB;
 FPnPEnable := true;
 FAutoReOpen := true;
+FEventsEnable := TRUE;
 FRxDFifoSize := 4096;
 FTxDFifoSize := 255;
 FCanRxDBufferSize := 50;
-
+RxMsgBuffer := nil;
+RxFdMsgBuffer := nil;
 FDeviceSnr:='';
+FDeviceName:='';
 FCfgFile:='';
 FLogFile:='';
 FLogFlags:=[];
@@ -747,8 +972,198 @@ end;
 destructor TTinyCAN.Destroy;
 
 begin
-DeAllocateHWnd(FWindowHandle);
+FEventsEnable := FALSE;
+CanDeviceClose;
+DownDriver;
 inherited Destroy;
+end;
+
+
+{**************************************************************}
+{* Hilfsfunktionen                                            *}
+{**************************************************************}
+function TTinyCAN.ValTypeConvert(t: Byte): TMhsValueType;
+var o, i: Byte;
+
+begin;
+o := 0;
+for i := 0 to 26 do
+  begin;
+  if MhsValueTypeTab[i] = t then
+    begin;
+    o := i;
+    break;
+    end; 
+  end;
+result := TMhsValueType(o);
+end;
+
+
+function TTinyCAN.GetBCD(data: Byte): Byte;
+var h, l: Byte;
+
+begin;
+l := (data) and $0F;
+h := (data shr 4) and $0F;
+result := l + (h * 10);
+end;
+
+
+function TTinyCAN.InfoVarGetDate(data_ptr: PByte): TCanInfoVarDate;
+
+begin;
+result.D := DWORD(GetBCD(data_ptr^));
+inc(data_ptr);
+result.M := DWORD(GetBCD(data_ptr^));
+inc(data_ptr);
+result.Y := DWORD(GetBCD(data_ptr^));
+end;
+
+
+function TTinyCAN.InfoVarGetVersion(data_ptr: PByte): TCanInfoVarVer;
+var value: DWORD;
+
+begin;
+value := GetLong(data_ptr);
+result.Major := value div 10000;
+value := value mod 10000;
+result.Minor := value div 100;
+result.Revision := value mod 100; 
+end;
+
+
+ 
+function TTinyCAN.GetWord(data_ptr: PByte): WORD;
+var l, h: Byte;
+
+begin;
+l := data_ptr^;
+inc(data_ptr);
+h := data_ptr^;
+result := (h shl 8) or l;
+end;
+
+
+function TTinyCAN.GetLong(data_ptr: PByte): DWORD;
+var l, m1, m2, h: Byte;
+
+begin;
+l := data_ptr^;
+inc(data_ptr);
+m1 := data_ptr^;
+inc(data_ptr);
+m2 := data_ptr^;
+inc(data_ptr);
+h := data_ptr^;
+result := (h shl 24) or (m2 shl 16) or (m1 shl 8) or l;
+end;
+
+
+function TTinyCAN.CanInfoVarCreate(dev_item: PCanInfoVarDev): PCanInfoVar;
+var i, size: DWORD;
+    b: Byte;
+    var_type: TMhsValueType;
+    item: PCanInfoVar;    
+    str: String;
+    err: boolean;
+
+begin;    
+result := nil;
+var_type := ValTypeConvert(dev_item.ValueType);  // Variablen Type
+size := DWORD(dev_item.Size);                    // (Max)Größe der Variable in Byte
+if var_type in [VT_ANY, VT_BYTE_ARRAY, VT_UBYTE_ARRAY, VT_WORD_ARRAY, VT_UWORD_ARRAY, VT_LONG_ARRAY,
+                VT_ULONG_ARRAY, VT_BYTE_RANGE_ARRAY, VT_UBYTE_RANGE_ARRAY, VT_WORD_RANGE_ARRAY,
+             VT_UWORD_RANGE_ARRAY, VT_LONG_RANGE_ARRAY, VT_ULONG_RANGE_ARRAY, VT_STREAM, VT_POINTER] then
+  exit;
+err := FALSE;
+case var_type of
+  VT_BYTE, VT_UBYTE, VT_HBYTE :
+       begin
+       if size <> 1 then
+         err := TRUE;
+       end;
+  VT_WORD, VT_UWORD, VT_HWORD :
+       begin
+       if size <> 2 then
+         err := TRUE;
+       end;
+  VT_LONG, VT_ULONG, VT_HLONG :
+       begin
+       if size <> 4 then
+         err := TRUE;
+       end;
+   end;
+if err then
+  exit;
+GetMem(item, sizeOf(TCanInfoVar));
+item.Key := DWORD(dev_item.Key);                       // Variablen Schlüssel
+item.ValueType := var_type;
+item.Size := size;
+case var_type of
+  VT_BYTE :
+       begin
+       item.Value.I8Value := AnsiChar(dev_item.Data[0]);
+       item.ValueStr := ShortString(Format('%d', [item.Value.I8Value]));
+       end;
+  VT_UBYTE, VT_HBYTE :
+       begin
+       item.Value.U8Value := Byte(dev_item.Data[0]);
+       if var_type = VT_HBYTE then
+         item.ValueStr := ShortString(Format('0x%.2X', [item.Value.U8Value]))
+       else
+         item.ValueStr := ShortString(Format('%u', [item.Value.U8Value]));
+       end;
+  VT_WORD :
+       begin
+       item.Value.I16Value := Smallint(GetWord(@dev_item.Data[0]));
+       item.ValueStr := ShortString(Format('%d', [item.Value.I16Value]));
+       end;
+  VT_UWORD, VT_HWORD :
+       begin
+       item.Value.U16Value := Word(GetWord(@dev_item.Data[0]));
+       if var_type = VT_HWORD then
+         item.ValueStr := ShortString(Format('0x%.4X', [item.Value.U16Value]))
+       else
+         item.ValueStr := ShortString(Format('%u', [item.Value.U16Value]));
+       end;
+  VT_LONG :
+       begin
+       item.Value.I32Value := Longint(GetLong(@dev_item.Data[0]));
+       item.ValueStr := ShortString(Format('%d', [item.Value.I32Value]));
+       end;
+  VT_ULONG, VT_HLONG :
+       begin
+       item.Value.U32Value := DWord(GetLong(@dev_item.Data[0]));
+       if var_type = VT_HLONG then
+         item.ValueStr := ShortString(Format('0x%.8X', [item.Value.U32Value]))
+       else
+         item.ValueStr := ShortString(Format('%u', [item.Value.U32Value]));
+       end;
+  VT_STRING :
+       begin
+       str := '';
+       for i:= 0 to size - 1 do
+         begin;
+         b := dev_item.Data[i];
+         if b = 0 then
+           break;
+         str := str + Char(AnsiChar(b));
+         end;
+       item.Value.StrValue := ShortString(str);
+       item.ValueStr := ShortString(str);
+       end;
+  VT_REVISION :
+       begin
+       item.Value.VerValue := InfoVarGetVersion(@dev_item.Data[0]);
+       item.ValueStr := ShortString(Format('%u.%u.%u', [item.Value.VerValue.Major, item.Value.VerValue.Minor, item.Value.VerValue.Revision]));
+       end;
+  VT_DATE :
+       begin
+       item.Value.DateValue := InfoVarGetDate(@dev_item.Data[0]);
+       item.ValueStr := ShortString(Format('%.2u.%.2u.%.4u', [item.Value.DateValue.D, item.Value.DateValue.M, item.Value.DateValue.Y]));
+       end;
+  end;
+result := item;      
 end;
 
 
@@ -825,75 +1240,158 @@ end;
 
 
 {**************************************************************}
-{* Message Handler                                            *}
+{*  Events                                                    *}
 {**************************************************************}
-procedure TTinyCAN.WndProc(var msg : TMessage);
+procedure TTinyCAN.SyncCanTimeoutEvent;
 
-begin
-with msg do
+begin;
+if FEventsEnable and Assigned(pmCanTimeoutEvent) then
+  pmCanTimeoutEvent(self);
+end;
+
+
+procedure TTinyCAN.SyncCanPnPEvent;
+
+begin;
+if FEventsEnable and Assigned(pmCanPnPEvent) then
+  pmCanPnPEvent(self);
+end;
+
+
+procedure TTinyCAN.SyncCanStatusEvent;
+
+begin;
+if FEventsEnable and Assigned(pmCanStatusEvent) then
   begin;
-  case Msg of
-    CM_CAN_PNP_EVENT    : begin;
-                          if Assigned(pmCanPnPEvent) then
-                            pmCanPnPEvent(self, FIndex, FPnPStatus);
-                          end;
-    CM_CAN_STATUS_EVENT : begin;
-                          if Assigned(pmCanStatusEvent) then
-                            pmCanStatusEvent(self, FIndex, FDeviceStatus);
-                          end;
-    CM_CAN_RXD_EVENT    : begin;
-                          if Assigned(pmCanRxDEvent) then
-                            pmCanRxDEvent(self, FIndex, FRxDMsgs, FRxDCount);
-                          end;
-    else // Handle all messages with the default handler
-      Result := DefWindowProc(FWindowHandle, Msg, wParam, lParam);
-    end;
+  CanGetDeviceStatus(DeviceIndex, FDeviceStatus);
+  pmCanStatusEvent(self, DeviceIndex, FDeviceStatus);
   end;
 end;
 
 
-{**************************************************************}
-{*  Events                                                    *}
-{**************************************************************}
-procedure CanPnPEventCallback(index: DWORD; status: Integer); stdcall;
+procedure TTinyCAN.SyncCanRxDEvent;
+var count: Integer;
 
 begin;
-InterlockedIncrement(DrvRefCounter);
-FIndex := index;
-FPnPStatus := status;
-SendMessage(FWindowHandle, CM_CAN_PNP_EVENT, 0, 0);
-InterlockedDecrement(DrvRefCounter);
-end;
-
-
-procedure CanStatusEventCallback(index: DWORD; device_status_drv: PDeviceStatusDrv); stdcall;
-var can_status: Byte;
-
-begin;
-InterlockedIncrement(DrvRefCounter);
-FIndex := index;
-can_status := device_status_drv^.CanStatus;
-FDeviceStatus.DrvStatus := TDrvStatus(device_status_drv^.DrvStatus);
-FDeviceStatus.CanStatus := TCanStatus(can_status and $0F);
-FDeviceStatus.FifoStatus := TCanFifoStatus(device_status_drv^.FifoStatus);
-if (can_status and $10) = $10 then
-  FDeviceStatus.BusFailure := TRUE
+if not FEventsEnable then
+  exit;
+if FFdMode then
+  begin;
+  if Assigned(pmCanRxDFdEvent) then
+    begin;
+    if RxFdMsgBuffer <> nil then
+      count := CanFdReceive($80000000, RxFdMsgBuffer, FCanRxDBufferSize)
+    else
+      count := 0;
+    pmCanRxDFdEvent(self, DeviceIndex, RxFdMsgBuffer, count);
+    end;
+  end
 else
-  FDeviceStatus.BusFailure := FALSE;
-SendMessage(FWindowHandle, CM_CAN_STATUS_EVENT, 0, 0);
-InterlockedDecrement(DrvRefCounter);
+  begin;
+  if Assigned(pmCanRxDEvent) then
+    begin;
+    if RxMsgBuffer <> nil then
+      count := CanReceive($80000000, RxMsgBuffer, FCanRxDBufferSize)
+    else
+      count := 0;
+    pmCanRxDEvent(self, DeviceIndex, RxMsgBuffer, count);
+    end;
+  end
 end;
 
 
-procedure CanRxEventCallback(index: DWORD; msg: PCanMsg; count: Integer); stdcall;
+procedure TTinyCAN.SyncCanRxDFilterEvent;
 
 begin;
-InterlockedIncrement(DrvRefCounter);
-FIndex := index;
-FRxDMsgs := msg;
-FRxDCount := count;
-SendMessage(FWindowHandle, CM_CAN_RXD_EVENT, 0, 0);
-InterlockedDecrement(DrvRefCounter);
+if FEventsEnable and Assigned(pmCanRxDFilterEvent) then
+  pmCanRxDFilterEvent(self);
+end;
+
+{ TCanEventThread }
+
+constructor TCanEventThread.Create(AOwner: TTinyCAN);
+
+begin
+inherited Create(True);  // Thread erzeugen nicht starten
+{CanEventsLock := TRUE; <*>
+InitializeCriticalSection(ThreadLock);}
+Owner := AOwner;
+Priority := tpHigher;
+//CanEventsLock := False;
+FreeOnTerminate := false;
+Resume;                  // Thread starten
+end;
+
+
+destructor TCanEventThread.Destroy;
+
+begin
+if not Terminated then
+  begin
+  Terminate;
+  if Owner <> nil then    
+    Owner.CanExSetEvent(Owner.TinyCanEvent, MHS_EVENT_TERMINATE);
+  end;  
+inherited;
+end;
+
+  
+procedure TCanEventThread.Execute;
+var
+  event, timeout: DWORD;
+
+begin
+inherited;
+while not Terminated do
+  begin
+  if CAN_TIMEOUT_EVENT in Owner.FEventMasks then
+    timeout := Owner.FNoEventTimeout
+  else
+    timeout := 0;
+  event := Owner.CanExWaitForEvent(Owner.TinyCanEvent, timeout);
+  if (event and $80000000) > 0 then
+    break;
+  if event = 0 then
+    begin;
+    if CAN_TIMEOUT_EVENT in Owner.FEventMasks then
+      Synchronize(Owner.SyncCanTimeoutEvent);
+    continue;
+    end;
+  if (event and DELPHI_PNP_EVENT) > 0 then        // Pluy &  Play Event
+    begin;
+    if PNP_CHANGE_EVENT in Owner.FEventMasks then
+      Synchronize(Owner.SyncCanPnPEvent);
+    end;
+  if (event and DELPHI_STATUS_EVENT) > 0 then      // Event Status änderung  
+    begin;
+    if STATUS_CHANGE_EVENT in Owner.FEventMasks then
+      Synchronize(Owner.SyncCanStatusEvent);
+    end;
+  if (event and DELPHI_RX_FILTER_EVENT) > 0 then   // CAN Rx Event
+    begin
+    if RX_FILTER_MESSAGES_EVENT in Owner.FEventMasks then
+      Synchronize(Owner.SyncCanRxDFilterEvent);
+    end;    
+    
+  if (event and DELPHI_RX_EVENT) > 0 then          // CAN Rx Event
+    begin;
+    if RX_MESSAGES_EVENT in Owner.FEventMasks then
+      Synchronize(Owner.SyncCanRxDEvent);
+    end;
+  if Owner.FMinEventSleepTime > 0then
+    Sleep(Owner.FMinEventSleepTime);  // x ms Pause
+  end;     
+end;
+
+
+procedure TTinyCAN.CanEventThreadTerminate;
+
+begin
+if Assigned(CanEventThread) then
+  begin
+  CanEventThread.Destroy;
+  CanEventThread := nil;
+  end;
 end;
 
 
@@ -905,7 +1403,7 @@ procedure TTinyCAN.SetCanSpeed(speed: TCanSpeed);
 begin;
 FCanSpeed := speed;
 if not (csDesigning in ComponentState) then
-  CanSetSpeed(0, speed);
+  CanSetSpeed(DeviceIndex, speed);
 end;
 
 
@@ -914,7 +1412,7 @@ procedure TTinyCAN.SetCanSpeedBtr(btr: DWord);
 begin;
 FCanSpeedBtr := btr;
 if not (csDesigning in ComponentState) then
-  CanSetSpeedUser(0, btr);
+  CanSetSpeedUser(DeviceIndex, btr);
 end;
 
 
@@ -923,7 +1421,7 @@ procedure TTinyCAN.SetCanFdSpeed(speed: TCanFdSpeed);
 begin;
 FCanFdSpeed := speed;
 if not (csDesigning in ComponentState) then
-  CanSetFdSpeed(0, speed, FCanFdDBtr);  
+  CanSetFdSpeed(DeviceIndex, speed, FCanFdDBtr);
 end;
 
 
@@ -932,19 +1430,16 @@ procedure TTinyCAN.SetCanFdDbtr(dbtr: DWord);
 begin;
 FCanFdDbtr := dbtr;
 if not (csDesigning in ComponentState) then
-  CanSetFdSpeed(0, FCanFdSpeed, dbtr);
+  CanSetFdSpeed(DeviceIndex, FCanFdSpeed, dbtr);
 end;
 
 
-procedure TTinyCAN.SetEventMasks(value: TEventMasks);
+procedure TTinyCAN.SetCanClockIndex(clock_idx: Byte);
 
 begin;
-{if value <> FEventMasks then <*>
-  begin;}
-FEventMasks := value;
+FCanClockIndex := clock_idx;
 if not (csDesigning in ComponentState) then
-    CanSetEvents(FEventMasks);
-//  end;
+  CanExSetAsUByte(DeviceIndex, 'CanClockIndex', clock_idx);
 end;
 
 
@@ -952,17 +1447,17 @@ function TTinyCan.GetLogFlags: DWORD;
 
 begin
 result := 0; 
-if LOG_MESSAGE in FLogFlags then            
+if LOG_MESSAGE in FLogFlags then
   result := result or TCAN_LOG_MESSAGE;
 if LOG_STATUS in FLogFlags then  
   result := result or TCAN_LOG_STATUS;
 if LOG_RX_MSG in FLogFlags then      
   result := result or TCAN_LOG_RX_MSG;
-if LOG_TX_MSG in FLogFlags then        
+if LOG_TX_MSG in FLogFlags then
   result := result or TCAN_LOG_TX_MSG;
 if LOG_API_CALL in FLogFlags then        
   result := result or TCAN_LOG_API_CALL;
-if LOG_ERROR in FLogFlags then      
+if LOG_ERROR in FLogFlags then
   result := result or TCAN_LOG_ERROR;
 if LOG_WARN in FLogFlags then         
   result := result or TCAN_LOG_WARN;
@@ -982,17 +1477,16 @@ end;
 {**************************************************************}
 {* Treiber Funktionen                                         *}
 {**************************************************************}
-function TTinyCAN.CanInitDriver_Int(ex_mode: boolean; fd_mode: boolean): Integer;
+function TTinyCAN.CanExInitDriver: Integer;
 var Str: String;
 
 begin;
 result := -1;
-if FCanRxDBufferSize > 0 then
-  Str := Format('CanRxDMode=1;CanRxDFifoSize=%u;CanTxDFifoSize=%u;CanRxDBufferSize=%u',
-              [FRxDFifoSize, FTxDFifoSize, FCanRxDBufferSize])
-else
-  Str := Format('CanRxDMode=0;CanRxDFifoSize=%u;CanTxDFifoSize=%u',
-              [FRxDFifoSize, FTxDFifoSize]);
+RxMsgBuffer := nil;
+RxFdMsgBuffer := nil;
+Str := Format('CanCallThread=0;CanRxDMode=0;CanRxDFifoSize=0;CanTxDFifoSize=%u', [FTxDFifoSize]);              
+if FFdMode then
+    Str := Str + ';FdMode=1';
 if length(FCfgFile) > 0 then
   Str := Str + ';CfgFile=' + FCfgFile;
 if length(FLogFile) > 0 then
@@ -1010,47 +1504,41 @@ if FCanFifoOvClear then
     Str := Str + ';FifoOvMode=0x8101'  
   end
 else
-  Str := Str + ';FifoOvMode=0x0000';    
-if ex_mode then
-  begin
-  if fd_mode then
-    Str := Str + ';FdMode=1'; 
-  if Assigned(pmCanExInitDriver) then
-    result := pmCanExInitDriver(PAnsiChar(AnsiString(Str)));
-  end
-else
-  begin;      
-  if Assigned(pmCanInitDriver) then
-    result := pmCanInitDriver(PAnsiChar(AnsiString(Str)));
-  end;
-end;
-
-
-function TTinyCAN.CanInitDriver: Integer;
-
-begin;
-result := CanInitDriver_Int(FALSE, FALSE);
-end;
-
-
-function TTinyCAN.CanExInitDriver(options: PAnsiChar): Integer;  
-
-begin;
-result := CanInitDriver_Int(TRUE, FFdMode);
+  Str := Str + ';FifoOvMode=0x0000';
+if Assigned(pmCanExInitDriver) then
+  result := pmCanExInitDriver(PAnsiChar(AnsiString(Str)));
+if result > -1 then
+  begin;  
+  if FCanRxDBufferSize > 0 then
+    begin;
+    if FFdMode then
+      RxFdMsgBuffer := AllocMem(FCanRxDBufferSize * SizeOf(TCanFdMsg))
+    else
+      RxMsgBuffer := AllocMem(FCanRxDBufferSize * SizeOf(TCanMsg));
+    end;  
+  TinyCanEvent := CanExCreateEvent;
+  CanExCreateDevice(DeviceIndex, '');
+  if FRxDFifoSize > 0 then
+    CanExCreateFifo($80000000, FRxDFifoSize, TinyCanEvent, DELPHI_RX_EVENT, $FFFFFFFF);    
+  CanExSetObjEvent(DeviceIndex, MHS_EVS_STATUS, TinyCanEvent, DELPHI_STATUS_EVENT);  
+  CanExSetObjEvent(INDEX_INVALID, MHS_EVS_PNP, TinyCanEvent, DELPHI_PNP_EVENT);
+  CanEventThread := TCanEventThread.Create(self);
+  end;    
 end;
 
 
 procedure TTinyCAN.CanDownDriver;
 var i, cnt: Integer;
+    saved_events: TEventMasks;
 
 begin;
+saved_events := FEventMasks;
+FEventMasks := [];
 if Assigned(pmCanDownDriver) then
   begin;
-  // **** Alle Events sperren
-  if Assigned(pmCanSetEvents) then
-    pmCanSetEvents(0);
   if Assigned(pmCanExSetEventAll) then
     pmCanExSetEventAll(MHS_EVENT_TERMINATE);
+  CanEventThreadTerminate;  
   for i := 0 to 5 do
     begin;
     cnt := 100;
@@ -1066,9 +1554,20 @@ if Assigned(pmCanDownDriver) then
     if DrvRefCounter = 0 then
       break;
     end;  
-  DrvRefCounter := 0;    
+  DrvRefCounter := 0;
   pmCanDownDriver;
   end;
+if RxMsgBuffer <> nil then
+  begin;
+  FreeMem(RxMsgBuffer);
+  RxMsgBuffer := nil;
+  end;
+if RxFdMsgBuffer <> nil then
+  begin;
+  FreeMem(RxFdMsgBuffer);
+  RxFdMsgBuffer := nil;
+  end;  
+FEventMasks := saved_events;  
 end;
 
 
@@ -1105,30 +1604,35 @@ var str: String;
 begin;
 result := -1;
 baud_rate := BaudRateTab[ord(FBaudRate)];
-if FInterfaceType = INTERFACE_USB then
+if length(FDeviceName) > 0 then
+  str := Format('DeviceName=%s', [FDeviceName])
+else  
   begin;
-  if (length(FDeviceSnr) > 0)  and (baud_rate > 0) then
-    str := Format('ComDrvType=1;Snr=%s;BaudRate=%u', [FDeviceSnr, baud_rate])
-  else if length(FDeviceSnr) > 0 then
-    str := Format('ComDrvType=1;Snr=%s', [FDeviceSnr])
-  else if baud_rate > 0 then
-    str := Format('ComDrvType=1;BaudRate=%u', [baud_rate])
+  if FInterfaceType = INTERFACE_USB then
+    begin;
+    if (length(FDeviceSnr) > 0)  and (baud_rate > 0) then
+      str := Format('ComDrvType=1;Snr=%s;BaudRate=%u', [FDeviceSnr, baud_rate])
+    else if length(FDeviceSnr) > 0 then
+      str := Format('ComDrvType=1;Snr=%s', [FDeviceSnr])
+    else if baud_rate > 0 then
+      str := Format('ComDrvType=1;BaudRate=%u', [baud_rate])
+    else
+      str := 'ComDrvType=1';
+    end  
   else
-    str := 'ComDrvType=1';
-  end  
-else
-  begin;
-  if baud_rate > 0 then                     
-    Str := Format('ComDrvType=0;Port=%u;BaudRate=%u',[FPort, baud_rate])
-  else
-    Str := Format('ComDrvType=0;Port=%u',[FPort]);
-  end;                        
+    begin;
+    if baud_rate > 0 then                     
+      str := Format('ComDrvType=0;Port=%u;BaudRate=%u',[FPort, baud_rate])
+    else
+      str := Format('ComDrvType=0;Port=%u',[FPort]);
+    end;
+  end;                          
 if length(FOpenStr) > 0 then
   str := str + ';' + FOpenStr;
 if (DrvDLLWnd <> 0) and Assigned(pmCanDeviceOpen) then
   begin;
   InterlockedIncrement(DrvRefCounter);
-  result := pmCanDeviceOpen(0, PAnsiChar(AnsiString(str)));
+  result := pmCanDeviceOpen(DeviceIndex, PAnsiChar(AnsiString(str)));
   InterlockedDecrement(DrvRefCounter);
   end;
 end;
@@ -1289,7 +1793,7 @@ if (DrvDLLWnd <> 0) and Assigned(pmCanExSetAsUWord) and Assigned(pmCanExSetAsULo
   if speed_value > 0 then
     result := pmCanExSetAsUWord(index, PAnsiChar(AnsiString('CanDSpeed1')), speed_value)
   else
-    result := pmCanExSetAsULong(index, PAnsiChar(AnsiString('CanDSpeed1User')), dbtr);  
+    result := pmCanExSetAsULong(index, PAnsiChar(AnsiString('CanDSpeed1User')), dbtr);
   InterlockedDecrement(DrvRefCounter);
   end;
 end;
@@ -1323,20 +1827,41 @@ else
 end;
 
 
-function TTinyCAN.CanSetFilter(index: DWORD; msg_filter: PMsgFilter): Integer;
+function TTinyCAN.CanSetFilter(index: DWORD; msg_filter: TMsgFilter): Integer;
+var drv_filter: TMsgFilterDrv;
+    flags: DWORD;
 
 begin;
 result := -1;
 if (DrvDLLWnd <> 0) and Assigned(pmCanSetFilter) then
   begin;
+  drv_filter.Maske := msg_filter.Maske_Stop;
+  drv_filter.Code := msg_filter.Code_Start_Id;
+  if msg_filter.IdMode = CAN_FILTER_START_STOP then
+    flags := $00000100
+  else if msg_filter.IdMode = CAN_FILTER_SINGLE_ID then
+    flags := $00000200
+  else
+    flags := 0;
+  if msg_filter.Enabled then  
+    flags := flags or FilFlagsEnable;
+  if msg_filter.RTR then
+    flags := flags or FlagsCanRTR;
+  if msg_filter.EFF then
+    flags := flags or FlagsCanEFF;  
+  if not msg_filter.PurgeMessage then
+    flags := flags or $40000000;   // 0 = Message entfernen      
+  drv_filter.Flags := flags;
   InterlockedIncrement(DrvRefCounter);
-  result := pmCanSetFilter(index, msg_filter);
+  result := pmCanSetFilter(index, @drv_filter);
   InterlockedDecrement(DrvRefCounter);
   end;
+if result > -1 then  
+  CanExSetObjEvent(index, MHS_EVS_OBJECT, TinyCanEvent, DELPHI_RX_FILTER_EVENT);  // <*> neu  
 end;
 
 
-function TTinyCAN.CanGetDeviceStatus(index: DWORD; status: PDeviceStatus): Integer;
+function TTinyCAN.CanGetDeviceStatus(index: DWORD; var status: TDeviceStatus): Integer;
 var status_drv: TDeviceStatusDrv;
 
 begin;
@@ -1347,76 +1872,32 @@ if (DrvDLLWnd <> 0) and Assigned(pmCanGetDeviceStatus) then
   result := pmCanGetDeviceStatus(index, @status_drv);
   InterlockedDecrement(DrvRefCounter);
   end;
-status^.DrvStatus := TDrvStatus(status_drv.DrvStatus);
-status^.CanStatus := TCanStatus(status_drv.CanStatus and $0F);
-status^.FifoStatus := TCanFifoStatus(status_drv.FifoStatus);
+if result < 0 then
+  begin;
+  status.DrvStatus := DRV_NOT_LOAD;
+  status.CanStatus := CAN_STATUS_UNBEKANNT;
+  status.FifoStatus := CAN_FIFO_STATUS_UNBEKANNT;
+  status.BusFailure := FALSE;
+  end
+else
+  begin;
+  if status_drv.DrvStatus > 8 then
+    status.DrvStatus := DRV_STATUS_CAN_RUN
+  else
+    status.DrvStatus := TDrvStatus(status_drv.DrvStatus);
+  if (status_drv.CanStatus and $0F) > 5 then
+    status.CanStatus := CAN_STATUS_UNBEKANNT
+  else
+    status.CanStatus := TCanStatus(status_drv.CanStatus and $0F);
+  if status_drv.FifoStatus > 4 then
+    status.FifoStatus := CAN_FIFO_STATUS_UNBEKANNT
+  else
+    status.FifoStatus := TCanFifoStatus(status_drv.FifoStatus);
+  end;
 if (status_drv.CanStatus and $10) = $10 then
-  status^.BusFailure := TRUE
+  status.BusFailure := TRUE
 else
-  status^.BusFailure := FALSE;
-end;
-
-
-procedure TTinyCAN.CanSetPnPEventCallback(event_proc: PF_CanPnPEventCallback);
-begin;
-if (DrvDLLWnd <> 0) and Assigned(pmCanSetPnPEventCallback) then
-  begin;
-  InterlockedIncrement(DrvRefCounter);
-  pmCanSetPnPEventCallback(event_proc);
-  InterlockedDecrement(DrvRefCounter);
-  end;
-end;
-
-
-procedure TTinyCAN.CanSetStatusEventCallback(event_proc: PF_CanStatusEventCallback);
-begin;
-if (DrvDLLWnd <> 0) and Assigned(pmCanSetStatusEventCallback) then
-  begin;
-  InterlockedIncrement(DrvRefCounter);
-  pmCanSetStatusEventCallback(event_proc);
-  InterlockedDecrement(DrvRefCounter);
-  end;
-end;
-
-
-procedure TTinyCAN.CanSetRxEventCallback(event_proc: PF_CanRxEventCallback);
-begin;
-if (DrvDLLWnd <> 0) and Assigned(pmCanSetRxEventCallback) then
-  begin;
-  InterlockedIncrement(DrvRefCounter);
-  pmCanSetRxEventCallback(event_proc);
-  InterlockedDecrement(DrvRefCounter);
-  end;
-end;
-
-
-procedure TTinyCAN.CanSetEvents(events: TEventMasks);
-var e: Word;
-
-begin;
-e := 0;
-if PNP_CHANGE_EVENT in events then
-  e := e or EVENT_ENABLE_PNP_CHANGE
-else
-  e := e or EVENT_DISABLE_PNP_CHANGE;
-if STATUS_CHANGE_EVENT in events then
-  e := e or EVENT_ENABLE_STATUS_CHANGE
-else
-  e := e or EVENT_DISABLE_STATUS_CHANGE;
-if RX_FILTER_MESSAGES_EVENT in events then
-  e := e or EVENT_ENABLE_RX_FILTER_MESSAGES
-else
-  e := e or EVENT_DISABLE_RX_FILTER_MESSAGES;
-if RX_MESSAGES_EVENT in events then
-  e := e or EVENT_ENABLE_RX_MESSAGES
-else
-  e := e or EVENT_DISABLE_RX_MESSAGES;
-if (DrvDLLWnd <> 0) and Assigned(pmCanSetEvents) then
-  begin;
-  InterlockedIncrement(DrvRefCounter);
-  pmCanSetEvents(e);
-  InterlockedDecrement(DrvRefCounter);
-  end;
+  status.BusFailure := FALSE;
 end;
 
 
@@ -1459,42 +1940,113 @@ if (DrvDLLWnd <> 0) and Assigned(pmCanExGetDeviceListPerform) then
 end;
 
 
-function TTinyCAN.CanExGetDeviceListGet(item: PCanDevicesList): Integer;
+function TTinyCAN.CanExGetDeviceListGet(var item: TCanDevicesList): Integer;
+var dev_item: TCanDevicesListDev;
 
 begin;
 result := 1;
 if (DrvDLLWnd <> 0) and Assigned(pmCanExGetDeviceListGet) then
   begin;
   InterlockedIncrement(DrvRefCounter);
-  result := pmCanExGetDeviceListGet(item);
-  InterlockedDecrement(DrvRefCounter);
+  result := pmCanExGetDeviceListGet(@dev_item);
+  item.TCanIdx := dev_item.TCanIdx;
+  item.HwId := dev_item.HwId;
+  item.DeviceName := ShortString(dev_item.DeviceName);
+  item.SerialNumber := ShortString(dev_item.SerialNumber);
+  item.Description := ShortString(dev_item.Description);
+  item.ModulFeatures := dev_item.ModulFeatures;
+  InterlockedDecrement(DrvRefCounter);  
   end;
 end;
 
 
-function TTinyCAN.CanExGetDeviceInfoPerform(index: DWORD; device_info: PCanDeviceInfo): Integer;
+function TTinyCAN.CanExGetDeviceList(flags: Integer): TCanDevicesListObj;
+var count, i: Integer;
+    item: PCanDevicesList;
+    dev_item: TCanDevicesListDev;
+
+begin;
+if (DrvDLLWnd = 0) or not Assigned(pmCanExGetDeviceListGet) then
+  begin;
+  result := nil;
+  exit;
+  end;
+count := CanExGetDeviceListPerform(flags);
+if count > 0 then
+  begin;
+  result := TCanDevicesListObj.Create;
+  InterlockedIncrement(DrvRefCounter);
+  for i := 1 to count do
+    begin;
+    if pmCanExGetDeviceListGet(@dev_item) < 0 then
+      break;
+    GetMem(item, sizeOf(TCanDevicesList));
+    item.TCanIdx := dev_item.TCanIdx;
+    item.HwId := dev_item.HwId;
+    item.DeviceName := ShortString(dev_item.DeviceName);
+    item.SerialNumber := ShortString(dev_item.SerialNumber);
+    item.Description := ShortString(dev_item.Description);
+    item.ModulFeatures := dev_item.ModulFeatures;
+    result.Add(item);
+    end;
+  InterlockedDecrement(DrvRefCounter);
+  end
+else
+  result := nil;
+end;
+  
+
+function TTinyCAN.CanExGetDeviceInfoPerform(index: DWORD; var device_info: TCanDeviceInfo): Integer;
+var dev_info: TCanDeviceInfo;
 
 begin;
 result := 1;
 if (DrvDLLWnd <> 0) and Assigned(pmCanExGetDeviceInfoPerform) then
   begin;
   InterlockedIncrement(DrvRefCounter);
-  result := pmCanExGetDeviceInfoPerform(index, device_info);
+  result := pmCanExGetDeviceInfoPerform(index, @dev_info);
   InterlockedDecrement(DrvRefCounter);
+  device_info.HwId := dev_info.HwId; 
+  device_info.FirmwareVersion := dev_info.FirmwareVersion; 
+  device_info.FirmwareInfo := dev_info.FirmwareInfo;                                           
+  device_info.SerialNumber := ShortString(dev_info.SerialNumber);
+  device_info.Description := ShortString(dev_info.Description);
+  device_info.ModulFeatures := dev_info.ModulFeatures; 
   end;
 end;
 
 
-function TTinyCAN.CanExGetDeviceInfoGet(item: PCanInfoVar): Integer;
+function TTinyCAN.CanExGetDeviceInfoGet(item: PCanInfoVarDev): Integer;
 
 begin;
-result := 1;
+result := -1;
 if (DrvDLLWnd <> 0) and Assigned(pmCanExGetDeviceInfoGet) then
   begin;
   InterlockedIncrement(DrvRefCounter);
   result := pmCanExGetDeviceInfoGet(item);
   InterlockedDecrement(DrvRefCounter);
   end;
+end;
+    
+
+function TTinyCAN.CanExGetDeviceInfo(index: DWORD; var device_info: TCanDeviceInfo): TCanInfoVarObj;
+var dev_item: TCanInfoVarDev;
+    item: PCanInfoVar;
+
+begin;
+if CanExGetDeviceInfoPerform(index, device_info) < 0 then
+  result := nil
+else
+  begin;
+  result := TCanInfoVarObj.Create;
+  while CanExGetDeviceInfoGet(@dev_item) > 0 do
+    begin;
+    item := CanInfoVarCreate(@dev_item);
+    if item = nil then
+      continue;
+    result.Add(item);
+    end;
+  end
 end;
 
 
@@ -1522,7 +2074,7 @@ if (DrvDLLWnd <> 0) and Assigned(pmCanExDestroyDevice) then
   InterlockedDecrement(DrvRefCounter);
   end;
 end;
-
+                 
 
 function TTinyCAN.CanExCreateFifo(index: DWORD; size: DWORD; event_obj: Pointer; event: DWORD; channels: DWORD): Integer;
 
@@ -1625,7 +2177,7 @@ if (DrvDLLWnd <> 0) and Assigned(pmCanExWaitForEvent) then
 end;
 
                              
-function TTinyCAN.CanExSetOptions(index: DWORD; char: String; options: String): Integer;
+function TTinyCAN.CanExSetOptions(index: DWORD; name: String; options: String): Integer;
 
 begin;
 result := -1;
@@ -1776,7 +2328,7 @@ if (DrvDLLWnd <> 0) and Assigned(pmCanExGetAsLong) then
 value := read_value;  
 end;
 
-   
+
 function TTinyCAN.CanExGetAsUByte(index: DWORD; name: String; var value: Byte): Integer;
 var read_value: Byte;
 
@@ -1866,6 +2418,73 @@ if (DrvDLLWnd <> 0) and Assigned(pmCanFdReceive) then
   end;
 end;
 
+// ********* <*> neu
+function TTinyCAN.CanExGetInfoListPerform(index: DWORD; name: PAnsiChar; flags: Integer): Integer;
+
+begin;
+result := -1; // <*>
+if (DrvDLLWnd <> 0) and Assigned(pmCanExGetInfoListPerform) then
+  begin;
+  InterlockedIncrement(DrvRefCounter);
+  result := pmCanExGetInfoListPerform(index, name, flags);
+  InterlockedDecrement(DrvRefCounter);
+  end;
+end;  
+  
+
+function TTinyCAN.CanExGetInfoListGet(list_idx: DWORD; item: PCanInfoVarDev): Integer;
+
+begin;
+result := -1; // <*>
+if (DrvDLLWnd <> 0) and Assigned(pmCanExGetInfoListGet) then
+  begin;
+  InterlockedIncrement(DrvRefCounter);
+  result := pmCanExGetInfoListGet(list_idx, item);
+  InterlockedDecrement(DrvRefCounter);
+  end;
+end;
+
+
+function TTinyCAN.CanExGetInfoList(index: DWORD; name: String; flags: Integer): TObjectList;
+var dev_item: TCanInfoVarDev;
+    item: PCanInfoVar;
+    info_list: TCanInfoVarObj;
+    res: Integer;
+    idx: DWORD;
+
+begin;
+res := CanExGetInfoListPerform(index, PAnsiChar(AnsiString(name)), flags);
+if res < 1 then
+  result := nil
+else
+  begin;
+  result := TObjectList.Create;
+  for idx := 0 to res-1 do
+    begin;
+    info_list := TCanInfoVarObj.Create;
+    while CanExGetInfoListGet(idx, @dev_item) > 0 do
+      begin;
+      item := CanInfoVarCreate(@dev_item);
+      if item = nil then
+        continue;
+      info_list.Add(item);  
+      end;  
+    result.Add(TObject(info_list));
+    end;
+  end
+end;
+
+
+function TTinyCAN.MhsCanGetApiHandle(api_handle: PPointer): Integer;
+begin;
+result := -1;
+if (DrvDLLWnd <> 0) and Assigned(pmMhsCanGetApiHandle) then
+  begin;
+  InterlockedIncrement(DrvRefCounter);
+  result := pmMhsCanGetApiHandle(api_handle);
+  InterlockedDecrement(DrvRefCounter);
+  end;
+end;  
 
 {**************************************************************}
 {* DLL Treiber laden                                          *}
@@ -1898,9 +2517,6 @@ try
   pmCanDrvHwInfo := GetProcAddress(DrvDLLWnd, 'CanDrvHwInfo');
   pmCanSetFilter := GetProcAddress(DrvDLLWnd, 'CanSetFilter');
   pmCanGetDeviceStatus := GetProcAddress(DrvDLLWnd, 'CanGetDeviceStatus');
-  pmCanSetPnPEventCallback := GetProcAddress(DrvDLLWnd, 'CanSetPnPEventCallback');
-  pmCanSetStatusEventCallback := GetProcAddress(DrvDLLWnd, 'CanSetStatusEventCallback');
-  pmCanSetRxEventCallback := GetProcAddress(DrvDLLWnd, 'CanSetRxEventCallback');
   pmCanSetEvents := GetProcAddress(DrvDLLWnd, 'CanSetEvents');
   pmCanEventStatus := GetProcAddress(DrvDLLWnd, 'CanEventStatus');
   // EX-API
@@ -1927,10 +2543,10 @@ try
   pmCanExSetAsLong := GetProcAddress(DrvDLLWnd, 'CanExSetAsLong');  
   pmCanExSetAsUByte := GetProcAddress(DrvDLLWnd, 'CanExSetAsUByte'); 
   pmCanExSetAsUWord := GetProcAddress(DrvDLLWnd, 'CanExSetAsUWord'); 
-  pmCanExSetAsULong := GetProcAddress(DrvDLLWnd, 'CanExSetAsULong'); 
+  pmCanExSetAsULong := GetProcAddress(DrvDLLWnd, 'CanExSetAsULong');
   pmCanExSetAsString := GetProcAddress(DrvDLLWnd, 'CanExSetAsString');
   pmCanExGetAsByte := GetProcAddress(DrvDLLWnd, 'CanExGetAsByte');  
-  pmCanExGetAsWord := GetProcAddress(DrvDLLWnd, 'CanExGetAsWord');  
+  pmCanExGetAsWord := GetProcAddress(DrvDLLWnd, 'CanExGetAsWord');
   pmCanExGetAsLong := GetProcAddress(DrvDLLWnd, 'CanExGetAsLong');  
   pmCanExGetAsUByte := GetProcAddress(DrvDLLWnd, 'CanExGetAsUByte'); 
   pmCanExGetAsUWord := GetProcAddress(DrvDLLWnd, 'CanExGetAsUWord'); 
@@ -1939,7 +2555,10 @@ try
   // **** CAN-FD
   pmCanFdTransmit := GetProcAddress(DrvDLLWnd, 'CanFdTransmit');
   pmCanFdReceive := GetProcAddress(DrvDLLWnd, 'CanFdReceive');
-    
+  pmCanExGetInfoListPerform := GetProcAddress(DrvDLLWnd, 'CanExGetInfoListPerform');
+  pmCanExGetInfoListGet := GetProcAddress(DrvDLLWnd, 'CanExGetInfoListGet');
+  pmMhsCanGetApiHandle := GetProcAddress(DrvDLLWnd, 'MhsCanGetApiHandle');
+
   if @pmCanInitDriver = nil then raise EDllLoadError.create('');
   if @pmCanDownDriver = nil then raise EDllLoadError.create('');
   if @pmCanSetOptions = nil then raise EDllLoadError.create('');
@@ -1959,9 +2578,6 @@ try
   if @pmCanDrvHwInfo = nil then raise EDllLoadError.create('');
   if @pmCanSetFilter = nil then raise EDllLoadError.create('');
   if @pmCanGetDeviceStatus = nil then raise EDllLoadError.create('');
-  if @pmCanSetPnPEventCallback = nil then raise EDllLoadError.create('');
-  if @pmCanSetStatusEventCallback = nil then raise EDllLoadError.create('');
-  if @pmCanSetRxEventCallback = nil then raise EDllLoadError.create('');
   if @pmCanSetEvents = nil then raise EDllLoadError.create('');
   if @pmCanEventStatus = nil then raise EDllLoadError.create('');
   // EX-API
@@ -1995,28 +2611,20 @@ try
   if @pmCanExGetAsLong = nil then raise EDllLoadError.create('');  
   if @pmCanExGetAsUByte = nil then raise EDllLoadError.create(''); 
   if @pmCanExGetAsUWord = nil then raise EDllLoadError.create(''); 
-  if @pmCanExGetAsULong = nil then raise EDllLoadError.create(''); 
+  if @pmCanExGetAsULong = nil then raise EDllLoadError.create('');
   if @pmCanExGetAsStringCopy = nil then raise EDllLoadError.create('');
   // **** CAN-FD
   if @pmCanFdTransmit = nil then raise EDllLoadError.create('');
   if @pmCanFdReceive = nil then raise EDllLoadError.create('');
+  if @pmCanExGetInfoListPerform = nil then EDllLoadError.create('');
+  if @pmCanExGetInfoListGet = nil then raise EDllLoadError.create('');
+  // if @pmMhsCanGetApiHandle = nil then raise EDllLoadError.create('');
   // Treiber Initialisieren
-  if CanInitDriver_Int(FExMode, FFdMode) <> 0 then raise EDllLoadError.create('');
-  // Callback-Funktionen setzen
-  CanSetPnPEventCallback(@CanPnPEventCallback);
-  CanSetStatusEventCallback(@CanStatusEventCallback);
-  CanSetRxEventCallback(@CanRxEventCallback);
-  // Events freigeben
-  CanSetEvents(FEventMasks);
-  CanSetSpeed(0, FCanSpeed);
+  if CanExInitDriver <> 0 then raise EDllLoadError.create('');
+  CanSetSpeed(DeviceIndex, FCanSpeed);
   // <*> CAN-FD / BTR setup ?
   // Treiber Optionen setzen
   CanSetOptions;
-  if not FExMode then
-    begin
-    if CanDeviceOpen <> 0 then
-      result := -2
-    end;
 except
   DownDriver;
   result := -1;
@@ -2030,9 +2638,6 @@ var dll_wnd: HWnd;
 begin;
 dll_wnd := DrvDLLWnd;
 DrvDLLWnd := 0;
-{CanSetEvents([]);   // Alle Events löschen
-while CanEventStatus = 0 do
-  Application.ProcessMessages;}
 if dll_wnd <> 0 then
   CanDownDriver;
 pmCanInitDriver := nil;
@@ -2054,9 +2659,6 @@ pmCanDrvInfo := nil;
 pmCanDrvHwInfo := nil;
 pmCanSetFilter := nil;
 pmCanGetDeviceStatus := nil;
-pmCanSetPnPEventCallback := nil;
-pmCanSetStatusEventCallback := nil;
-pmCanSetRxEventCallback := nil;
 pmCanSetEvents := nil;
 pmCanEventStatus := nil;
 // EX-API
@@ -2078,7 +2680,7 @@ pmCanExResetEvent := nil;
 pmCanExWaitForEvent := nil;
 
 pmCanExInitDriver := nil; 
-pmCanExSetOptions := nil; 
+pmCanExSetOptions := nil;
 pmCanExSetAsByte := nil;
 pmCanExSetAsWord := nil;
 pmCanExSetAsLong := nil;
@@ -2096,9 +2698,12 @@ pmCanExGetAsStringCopy := nil;
 // **** CAN-FD
 pmCanFdTransmit := nil;
 pmCanFdReceive := nil;
+pmCanExGetInfoListPerform := nil;
+pmCanExGetInfoListGet := nil;
+pmMhsCanGetApiHandle := nil;
 
 if dll_wnd <> 0 then
-  FreeLibrary(dll_wnd);    
+  FreeLibrary(dll_wnd);      
 end;
 
 
@@ -2108,4 +2713,8 @@ begin
 end;
 
 end.
+
+
+
+
 

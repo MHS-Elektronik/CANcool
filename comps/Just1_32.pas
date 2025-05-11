@@ -38,9 +38,16 @@ Comments:			This source code includes the support of an 'About' box
 }
 unit Just1_32;
 
+{$IFDEF FPC}
+  {$MODE Delphi}
+{$ENDIF}
+
 interface
 
 uses
+{$IFDEF FPC}
+  LResources,
+{$ENDIF}
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms,
   Dialogs;
 
@@ -93,9 +100,9 @@ end;
 {#############################################################################}
 procedure Register;
 begin
-	{JustOne will appear on a new component palette page called 'SLicK'.  If
-  you want it on a different page, replace 'SLicK' below with the page name
-  of your choice.}
+{$IFDEF FPC}
+  {$I Just1_32.lrs}
+{$ENDIF} 
   RegisterComponents('MHS', [TJustOne32]);
 end;
 
@@ -116,7 +123,7 @@ begin
     	{set hPrevInst property and close the mutex handle}
       begin
 	      hPrevInst := TRUE;
-  	    CloseHandle(MutexHandle);
+  	    FileClose(MutexHandle); { *Konvertiert von CloseHandle* }
       end
    	else
     	{indicate no previous instance was found}

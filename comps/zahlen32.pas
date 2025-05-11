@@ -1,9 +1,11 @@
 {***************************************************************************
                         zahlen32.pas  -  description
-                             -------------------   
-    copyright         : (C) 2000 MHS-Elektronik GmbH & Co. KG, Germany
+                             -------------------
+    begin             : 19.06.2022                                        
+    last modify       : 26.01.2025                                        							    
+    copyright         : (C) 2022 - 2025 MHS-Elektronik GmbH & Co. KG, Germany
                                http://www.mhs-elektronik.de    
-    autho             : Klaus Demlehner, klaus@mhs-elektronik.de
+    author            : Klaus Demlehner, klaus@mhs-elektronik.de
  ***************************************************************************}
 
 {***************************************************************************
@@ -15,12 +17,21 @@
  ***************************************************************************}
 unit zahlen32;
 
+{$IFDEF FPC}
+  {$MODE Delphi}
+{$ENDIF}
+
 interface
 
 {$WARN SYMBOL_DEPRECATED OFF}
 
 uses
-  SysUtils, WinTypes, WinProcs, Messages, Classes, Graphics, Controls,
+{$IFnDEF FPC}
+  Messages, WinProcs, WinTypes,
+{$ELSE}
+  LResources, LCLIntf, LCLType,
+{$ENDIF}
+  SysUtils, Classes, Graphics, Controls,
   Forms, StdCtrls, MHSTypes;
 
 const
@@ -86,7 +97,9 @@ type
     property BorderStyle;
     property CharCase;
     property Color;
+{$IFnDEF FPC}
     property Ctl3D;
+{$ENDIF}
     property DragCursor;
     property DragMode;
     property Enabled;
@@ -95,7 +108,9 @@ type
     property MaxLength;
    { property OEMConvert; }
     property ParentColor;
+{$IFnDEF FPC}
     property ParentCtl3D;
+{$ENDIF}
     property ParentFont;
     property ParentShowHint;
    { property PasswordChar; }
@@ -131,6 +146,9 @@ implementation
 
 procedure Register;
 begin
+{$IFDEF FPC}
+  {$I zahlen32.lrs}
+{$ENDIF}  
   RegisterComponents('MHS', [TZahlen32Edit]);
 end;
 
@@ -268,8 +286,8 @@ case FHexMode of
                 else if (In_Dez and $FFFFFF00) > 0 then Mode:=1;
                 end;
   end;
-SetLength(Str_,8);
 Str_:='';
+//SetLength(Str_,8);<*>
 case Mode of
   0 : begin;
       for i:=8 downto 7 do
@@ -313,6 +331,7 @@ var Puffer_: String;
 
 begin;
 hlp:=7;
+Puffer_ := '';
 case FBinMode of
   Z32DWord    : hlp:=31;
   Z32Word     : hlp:=15;
@@ -498,10 +517,10 @@ end;
 procedure TZahlen32Edit.SetZahl(In_ : UINT);
 var str_: String;
 
-
 begin
 AltValue:=In_;
 if FAutoFormat=True then AFormat:=FFormat;
+str_:='';
 case AFormat of
   HexFormat : begin;
               str_:=HextoStr(In_);
@@ -524,7 +543,7 @@ case AFormat of
                 then str_:='´'+str_+'´';
               end;
   end;
-  Text:=str_;
+Text:=str_;
 end;
 
 end.

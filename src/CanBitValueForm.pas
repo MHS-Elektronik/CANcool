@@ -2,10 +2,10 @@
                       CanBitValueForm.pas  -  description
                              -------------------
     begin             : 03.12.2012
-    last modified     : 30.05.2020     
-    copyright         : (C) 2012 - 2020 by MHS-Elektronik GmbH & Co. KG, Germany
+    last modified     : 27.12.2021     
+    copyright         : (C) 2012 - 2021 by MHS-Elektronik GmbH & Co. KG, Germany
                                http://www.mhs-elektronik.de    
-    autho             : Klaus Demlehner, klaus@mhs-elektronik.de
+    author            : Klaus Demlehner, klaus@mhs-elektronik.de
  ***************************************************************************}
 
 {***************************************************************************
@@ -26,7 +26,7 @@ uses
 
 type
   TBitConf = record
-    Name: String[40];
+    Name: String[80];
     Color: TColor;
     BytePos: Byte;
     BitPos: Byte;
@@ -48,19 +48,15 @@ type
     procedure FormResize(Sender: TObject);
   private
     { Private-Deklarationen }
-    LockStatus: boolean;
     DataChange: Boolean;
-    Data: array[0..7] of Byte;
-    WidgetAktiv: boolean;
+    Data: array[0..63] of Byte;
     CanId: longword;
     MuxEnable: boolean;
     MuxDlc: Byte;
     MuxCanMask: array[0..7] of Byte;
     MuxCanData: array[0..7] of Byte;      
     BitConfListe: TList;
-    LEDS: TObjectList;
-    procedure Lock;
-    procedure Unlock;   
+    LEDS: TObjectList;   
     procedure CreateLEDS;
   public
     { Public-Deklarationen }
@@ -91,9 +87,6 @@ begin
 inherited;
 BitConfListe := TList.Create;
 LEDS := TObjectList.Create;
-
-WidgetAktiv := True;
-LockStatus := False;
 CanId := 0;
 MuxEnable := False;
 MuxDlc := 8;
@@ -171,7 +164,7 @@ var
   BytePos, BitPos: Byte;
 
 begin
-Lock;
+EventsLock;
 self.Caption := ReadListString(ConfigList, 'Name', self.Caption);
 CanId := ReadListInteger(ConfigList, 'CanId', CanId);
 MuxDlc := ReadListInteger(ConfigList, 'MuxDlc', 8);
@@ -222,7 +215,7 @@ for i := 0 to ConfigList.Count-1 do
   end;
 CreateLEDS;
 WindowMenuItem.Caption :=  self.Caption;
-Unlock;
+EventsUnlock;
 end;
 
 
@@ -304,7 +297,7 @@ var
   fault: boolean;
 
 begin;
-if (not WidgetAktiv) or (count = 0) or (LockStatus) then
+if count = 0 then
   exit;
 hit_msg := nil;
 for i := 1 to count do
@@ -333,7 +326,7 @@ for i := 1 to count do
     begin;
     if (can_msg^.Flags and FlagCanFdRTR) = 0 then
       begin;
-      can_msg^.Flags := can_msg^.Flags or FlagsCanFilHit;
+      can_msg^.Flags := can_msg^.Flags or FlagCanFdFilHit;
       hit_msg := can_msg;
       end;    
     end;
@@ -342,7 +335,7 @@ for i := 1 to count do
 if hit_msg <> nil then
   begin;
   dlc := hit_msg^.Length;
-  if (dlc >= 1) and (dlc <= 8) then
+  if (dlc >= 1) and (dlc <= 64) then
     begin
     for i := 0 to dlc-1 do
       begin
@@ -359,17 +352,14 @@ procedure TCanBitValueWin.RxCanUpdate;
 var
   i: integer;
   maske: Byte;
-  tmp_data: array[0..7] of Byte;
+  tmp_data: array[0..63] of Byte;
 
 begin;
-RxCanEnterCritical;
-if (not WidgetAktiv) or (not DataChange) or (LockStatus) then
-  begin
-  RxCanLeaveCritical;
+if not DataChange then
   exit;
-  end;  
+RxCanEnterCritical; 
 DataChange := False;
-Move(Data, tmp_data, 8);
+Move(Data, tmp_data, 64);
 RxCanLeaveCritical;  
 
 if BitConfListe.Count = 0 then
@@ -392,8 +382,7 @@ var
   Form: TCanBitValueSetupWin;
   
 begin
-Lock;
-inherited;
+EventsLock;
 Form := TCanBitValueSetupWin.Create(self);
 
 Form.NameEdit.Text := self.Caption;
@@ -444,14 +433,13 @@ if Form.ShowModal = mrOK then
   WindowMenuItem.Caption :=  self.Caption;
   end;
 Form.Free;
-Unlock;
+EventsUnlock;
 end;
 
 
 procedure TCanBitValueWin.AktivBtnClick(Sender: TObject);
 
 begin
-inherited;
 WidgetAktiv := AktivBtn.Checked;
 end;
 
@@ -459,27 +447,7 @@ end;
 procedure TCanBitValueWin.DestroyBtnClick(Sender: TObject);
 
 begin
-Lock;
-inherited;
 close;
-end;
-
-
-procedure TCanBitValueWin.Lock;
-
-begin
-RxCanEnterCritical;
-LockStatus := True;
-RxCanLeaveCritical;
-end;
-
-
-procedure TCanBitValueWin.Unlock;
-
-begin
-RxCanEnterCritical;
-LockStatus := False;
-RxCanLeaveCritical;
 end;
 
 end.

@@ -2,8 +2,8 @@
                           CanRx.pas  -  description
                              -------------------
     begin             : 07.01.2013
-    last modified     : 17.01.2016     
-    copyright         : (C) 2013 - 2016 by MHS-Elektronik GmbH & Co. KG, Germany
+    last modified     : 14.10.2022     
+    copyright         : (C) 2013 - 2022 by MHS-Elektronik GmbH & Co. KG, Germany
                                http://www.mhs-elektronik.de    
     autho             : Klaus Demlehner, klaus@mhs-elektronik.de
  ***************************************************************************}
@@ -60,6 +60,7 @@ type
     function SaveToFileInt: Integer;
     function SaveThreadTerminate: Integer;
   public
+    FdMode: boolean;
     Capacity: Integer;
     FirstTime: TCanTime; 
     TraceSaveProgressForm: TTraceSaveProgress;
@@ -351,10 +352,11 @@ end;
 
 function TRxCanList.SaveToFileInt: Integer;
 var can_msg: PCanFdMsg;
+    line, fmt_str, id_dlc_str: string;
     str: string[250];
-    d, len: Byte;
-    dlc, i, ii, last_pos, p: integer;
-    rtr, eff: boolean;
+    d, idx: Byte;
+    dlc, dlc_max, i, ii, last_pos, p: integer;
+    rtr, eff, fd, brs: boolean;
     ofs, timestamp: DWord;
     f: TextFile;
     scale: double;
@@ -379,7 +381,20 @@ ofs := (FirstTime.USec div 1000) + (FirstTime.Sec * 1000);
 try
   AssignFile(f, TraceFileName);
   Rewrite(f);
-  Writeln(f, 'Timestamp;Frame;ID;DLC;D0;D1;D2;D3;D4;D5;D6;D7;');
+    if FdMode then
+    begin;
+    Writeln(f, 'Timestamp;Frame;ID;DLC;D0;D1;D2;D3;D4;D5;D6;D7;D8;D9;D10;D11;D12;D13;D14;D15;' +
+                            'D16;D17;D18;D19;D20;D21;D22;D23;D24;D25;D26;D27;D28;D29;D30;D31;' +
+                            'D32;D33;D34;D35;D36;D37;D38;D39;D40;D41;D42;D43;D44;D45;D46;D47;' +
+                            'D48;D49;D50;D51;D52;D53;D54;D55;D56;D57;D58;D59;D60;D61;D62;D63;' +
+                            'TxMode;TriggerId;Intervall;Coment');
+    dlc_max := 64;
+    end
+  else
+    begin;
+    dlc_max := 8;
+    Writeln(f, 'Timestamp;Frame;ID;DLC;D0;D1;D2;D3;D4;D5;D6;D7;TxMode;TriggerId;Intervall;Coment');
+    end;
   for i := 0 to FCount-1 do
     begin
     if SaveThread <> nil then
@@ -406,6 +421,8 @@ try
       break;
       end;
     dlc := can_msg^.Length;
+    if not FdMode and (dlc > 8) then
+      dlc := 8;    
     if (can_msg^.Flags and FlagCanFdEFF) > 0 then
       eff := True
     else
@@ -413,43 +430,70 @@ try
     if (can_msg^.Flags and FlagCanFdRTR) > 0 then
       rtr := True
     else
-      rtr := False;    
-    timestamp := (can_msg^.Time.USec div 1000) + (can_msg^.Time.Sec * 1000) - ofs;
-    // Timestamp; Frame Format; ID; DLC; Daten         
-    if rtr and eff then
-      str := format('%u;EFF/RTR;%X;%u;', [timestamp, can_msg^.ID, dlc])
-    else if eff then
-      str := format('%u;EFF;%X;%u;', [timestamp, can_msg^.ID, dlc])
-    else if rtr then
-      str := format('%u;STD/RTR;%X;%u;', [timestamp, can_msg^.ID, dlc])
+      rtr := False; 
+    if FdMode then
+      begin;
+      if (can_msg^.Flags and FlagCanFdFD) > 0 then
+        fd := True
+      else
+        fd := False;
+      if (can_msg^.Flags and FlagCanFdBRS) > 0 then
+        brs := True
+      else
+        brs := False;
+      end
     else
-      str := format('%u;STD;%X;%u;', [timestamp, can_msg^.ID, dlc]);
-    len := Byte(str[0]);
+      begin;
+      fd := False;
+      brs := False;
+      end;    
+    //  Frame Format
+    if rtr and eff then
+      fmt_str := 'EFF/RTR'
+    else if eff then
+      fmt_str := 'EFF'
+    else if rtr then
+      fmt_str := 'STD/RTR'
+    else
+      fmt_str := 'STD';
+    if fd and brs then
+      fmt_str := fmt_str + ' FD/BRS'
+    else if fd then
+      fmt_str := fmt_str + ' FD';       
+    timestamp := (can_msg^.Time.USec div 1000) + (can_msg^.Time.Sec * 1000) - ofs;
+    // ID; DLC;
+    if eff then
+      id_dlc_str := format('%08X;%u', [can_msg^.ID, dlc])
+    else
+      id_dlc_str := format('%04X;%u', [can_msg^.ID, dlc]);    
+    // Data  
+    idx := 0;
     if (dlc > 0) and not rtr then
       begin;
       for ii := 0 to dlc-1 do
         begin;
         d := can_msg^.Data.Bytes[ii];
-        inc(len);
-        str[len] := HexDigits[d SHR $04];
-        inc(len);
-        str[len] := HexDigits[d AND $0F];
-        inc(len);
-        str[len] := ';';
-        end;      
+        inc(idx);
+        str[idx] := HexDigits[d SHR $04];
+        inc(idx);
+        str[idx] := HexDigits[d AND $0F];
+        inc(idx);
+        str[idx] := ';';
+        end;
       end;
     if rtr then
       dlc := 0;
-    if dlc < 8 then
+    if dlc < dlc_max then
       begin;
-      for ii := dlc to 7 do
+      for ii := dlc to dlc_max do
         begin;
-        inc(len);
-        str[len] := ';';
+        inc(idx);
+        str[idx] := ';';
         end;
       end;
-    str[0] := Char(len);
-    Writeln(f, str);
+    str[0] := Char(idx);
+    line := format('%u;%s;%s;%s', [timestamp, fmt_str, id_dlc_str, str]);
+    Writeln(f, line);
     end;
 finally
   CloseFile(f);

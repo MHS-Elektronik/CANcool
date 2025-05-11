@@ -2,10 +2,10 @@
                       CanValueForm.pas  -  description
                              -------------------
     begin             : 03.12.2012
-    last modified     : 30.05.2020     
-    copyright         : (C) 2012 - 2020 by MHS-Elektronik GmbH & Co. KG, Germany
+    last modified     : 27.12.2021     
+    copyright         : (C) 2012 - 2021 by MHS-Elektronik GmbH & Co. KG, Germany
                                http://www.mhs-elektronik.de    
-    autho             : Klaus Demlehner, klaus@mhs-elektronik.de
+    author            : Klaus Demlehner, klaus@mhs-elektronik.de
  ***************************************************************************}
 
 {***************************************************************************
@@ -43,11 +43,9 @@ type
     procedure DestroyBtnClick(Sender: TObject);
   private
     { Private-Deklarationen }
-    LockStatus: boolean;
-    WidgetAktiv: boolean;
     BerechnungsObj: TIntTerm;
     DataChange: Boolean;
-    Data: array[0..7] of Byte;
+    Data: array[0..63] of Byte;
     Varis: VarArray;
     CanId: longword;
     MuxEnable: boolean;
@@ -58,8 +56,6 @@ type
     UnitStr: string;
     Margin: integer;       // Abstand der Skala zum Rand
     FSizeType: Integer;
-    procedure Lock;
-    procedure Unlock;
     procedure SetFSizeType(value: Integer);
     property SizeType: Integer read FSizeType write SetFSizeType;
   public
@@ -86,16 +82,12 @@ var
 begin
 inherited;
 BerechnungsObj := TIntTerm.Create;
-
-SetLength(Varis, 8);
+SetLength(Varis, 64);
 for i := 0 to high(Varis) do
   begin
   Varis[i].Name := format('d%u',[i]);
   Varis[i].Wert := 0;
   end;
-
-WidgetAktiv := True;
-LockStatus := False;
 Margin := 5;
 UnitStr := 'x';
 CanId := 0;
@@ -171,7 +163,7 @@ end;
 procedure TCanValueWin.LoadConfig(ConfigList: TStrings);
 
 begin
-Lock;
+EventsLock;
 self.Caption := ReadListString(ConfigList, 'Name', self.Caption);
 CanId := ReadListInteger(ConfigList, 'CanId', CanId);
 MuxDlc := ReadListInteger(ConfigList, 'MuxDlc', 8);
@@ -203,7 +195,7 @@ SizeType := ReadListInteger(ConfigList, 'SizeType', SizeType);
 LEDDisplay.FractionDigits := ReadListInteger(ConfigList, 'PrecDigits', LEDDisplay.FractionDigits);
 FormResize(self);
 WindowMenuItem.Caption :=  self.Caption;
-Unlock;
+EventsUnlock;
 end;
 
 
@@ -248,7 +240,7 @@ var
   fault: boolean;
   
 begin;
-if (not WidgetAktiv) or (count = 0) or (LockStatus) then
+if count = 0 then
   exit;
 hit_msg := nil;   
 for i := 1 to count do
@@ -277,7 +269,7 @@ for i := 1 to count do
     begin;      
     if (can_msg^.Flags and FlagCanFdRTR) = 0 then
       begin;
-      can_msg^.Flags := can_msg^.Flags or FlagsCanFilHit;
+      can_msg^.Flags := can_msg^.Flags or FlagCanFdFilHit;
       hit_msg := can_msg;
       end; 
     end;
@@ -304,17 +296,13 @@ var
   i: integer;
 
 begin
-RxCanEnterCritical;
-if (not WidgetAktiv) or (not DataChange) or (LockStatus) then
-  begin
-  RxCanLeaveCritical;
+if not DataChange then
   exit;
-  end;  
+RxCanEnterCritical;  
 DataChange := False;
 for i := 0 to high(Varis) do
   Varis[i].Wert := Data[i];
 RxCanLeaveCritical;
-
 try
   LEDDisplay.Value := BerechnungsObj.TermLoesen(Formula, @Varis);
 except
@@ -330,13 +318,10 @@ var
   Form: TCanValueSetupWin;
 
 begin
-Lock;
-inherited;
+EventsLock;
 Form := TCanValueSetupWin.Create(self);
-
 Form.NameEdit.Text := self.Caption;
 Form.CANIDEdit.Number := CanId;
-
 Form.DLCEdit.Number := MuxDlc;
 Form.Mask8Edit.Number := MuxCanMask[7];
 Form.Mask7Edit.Number := MuxCanMask[6];
@@ -360,7 +345,6 @@ Form.EinheitEdit.Text := UnitStr;
 Form.ColorEdit.Selected := LEDDisplay.ColorLED;
 Form.SizeEdit.ItemIndex := SizeType;
 Form.PrecDigitEdit.Value := LEDDisplay.FractionDigits;
-
 if Form.ShowModal = mrOK then
   begin
   self.Caption := Form.NameEdit.Text;
@@ -394,14 +378,13 @@ if Form.ShowModal = mrOK then
   WindowMenuItem.Caption :=  self.Caption;
   end;
 Form.Free;
-Unlock;
+EventsUnlock;
 end;
 
 
 procedure TCanValueWin.AktivBtnClick(Sender: TObject);
 
-begin
-inherited;
+begin;
 WidgetAktiv := AktivBtn.Checked;
 end;
 
@@ -409,28 +392,7 @@ end;
 procedure TCanValueWin.DestroyBtnClick(Sender: TObject);
 
 begin
-Lock;
-inherited;
 close;
 end;
-
-
-procedure TCanValueWin.Lock;
-
-begin
-RxCanEnterCritical;
-LockStatus := True;
-RxCanLeaveCritical;
-end;
-
-
-procedure TCanValueWin.Unlock;
-
-begin
-RxCanEnterCritical;
-LockStatus := False;
-RxCanLeaveCritical;
-end;
-
 
 end.

@@ -2,7 +2,7 @@
                   CanBitValueSetupForm.pas  -  description
                              -------------------
     begin             : 03.12.2012
-    last modified     : 27.02.2016     
+    last modified     : 10.01.2022     
     copyright         : (C) 2012 -02016 by MHS-Elektronik GmbH & Co. KG, Germany
                                http://www.mhs-elektronik.de     
     autho             : Klaus Demlehner, klaus@mhs-elektronik.de
@@ -66,6 +66,7 @@ type
     Data2Edit: TZahlenEdit;
     Data1Edit: TZahlenEdit;
     MuxEnabledCheck: TCheckBox;
+    FdBitComboBox: TComboBox;
     procedure FormCreate(Sender: TObject);
     procedure ComboBoxExit(Sender: TObject);
     procedure ColorBoxExit(Sender: TObject);
@@ -97,7 +98,7 @@ type
 
 implementation
 
-uses MainForm, CanBitValueForm;
+uses MainForm, Setup, CanBitValueForm;
 
 {$R *.dfm}
 
@@ -111,11 +112,11 @@ begin
   TMainWin(Owner.Owner).ButtonImages.GetBitmap(3, EntfernenBtn.Glyph);
   BitConfListe := TList.Create;
 
-  BitNameGrid.ColWidths[0] := 125;
+  BitNameGrid.ColWidths[0] := 220;
   BitNameGrid.Cells[0, 0] := 'Bezeichnung';
   BitNameGrid.ColWidths[1] := 90;
   BitNameGrid.Cells[1, 0] := 'Farbe';
-  BitNameGrid.ColWidths[2] := 40;
+  BitNameGrid.ColWidths[2] := 60;
   BitNameGrid.Cells[2, 0] := 'Byte';
   BitNameGrid.ColWidths[3] := 40;
   BitNameGrid.Cells[3, 0] := 'Bit';
@@ -123,6 +124,8 @@ begin
 
   BitComboBox.Parent := BitNameGrid;
   BitComboBox.Visible := False;
+  FdBitComboBox.Parent := BitNameGrid;
+  FdBitComboBox.Visible := False;
 
   ColorBox.Parent := BitNameGrid;
   ColorBox.Visible := False;
@@ -225,6 +228,7 @@ end;
 procedure TCanBitValueSetupWin.CMDialogKey(var msg: TCMDialogKey);
 begin
 if (ActiveControl = BitComboBox) or
+   (ActiveControl = FdBitComboBox) or
    (ActiveControl = ColorBox) then
   begin
   if msg.CharCode = VK_TAB then
@@ -279,8 +283,16 @@ if (ACol in [1, 2, 3]) and (ARow >= BitNameGrid.FixedRows) then
         ColorBox.Selected := PBitConf(BitConfListe[ARow-1]).Color;
         end;
     2 : begin
-        box_obj := BitComboBox;
-        BitComboBox.ItemIndex := PBitConf(BitConfListe[ARow-1]).BytePos;
+        if SetupData.CanFd then
+          begin;
+          box_obj := FdBitComboBox;
+          FdBitComboBox.ItemIndex := PBitConf(BitConfListe[ARow-1]).BytePos;
+          end
+        else
+          begin;
+          box_obj := BitComboBox;
+          BitComboBox.ItemIndex := PBitConf(BitConfListe[ARow-1]).BytePos;
+          end;
         end;
     3 : begin;
         box_obj := BitComboBox;

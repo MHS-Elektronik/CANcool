@@ -2,17 +2,17 @@
                          MainForm.pas  -  description
                              -------------------
     begin             : 07.01.2013
-    last modified     : 30.05.2020     
-    copyright         : (C) 2013 - 2020 by MHS-Elektronik GmbH & Co. KG, Germany
+    last modified     : 14.10.2022
+    copyright         : (C) 2013 - 2022 by MHS-Elektronik GmbH & Co. KG, Germany
                                http://www.mhs-elektronik.de    
-    autho             : Klaus Demlehner, klaus@mhs-elektronik.de
+    author            : Klaus Demlehner, klaus@mhs-elektronik.de
  ***************************************************************************}
 
 {***************************************************************************
  *                                                                         *
  *   This program is free software, you can redistribute it and/or modify  *
  *   it under the terms of the MIT License <LICENSE.TXT or                 *
- *   http://opensource.org/licenses/MIT>                                   *              
+ *   http://opensource.org/licenses/MIT>                                   *
  *                                                                         *
  ***************************************************************************}
 unit MainForm;
@@ -26,7 +26,8 @@ uses
   Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
   Dialogs, Menus, ComCtrls, IniFiles, StdCtrls, ExtCtrls, Buttons,
   ToolWin, Grids, StrUtils, ImgList, TinyCanDrv, XLAboutDialog, CanRx, CanRxForm,
-  CanTxForm, CanFdTxForm, jpeg, Just1_32;
+  CanCoolDefs, CanTxForm, CanFdTxForm, jpeg, Just1_32, HwInfo, CanTx, XPMan,
+  MhsCanUtil;
 
 const
   RX_EVENT: DWORD = $00000001;
@@ -43,25 +44,34 @@ const
         '800 kBit/s',
         '  1 MBit/s');
         
-  CanDSpeedStrings: array[0..6] of String =
-       ('250 kBit/s',
+  CanDSpeedStrings: array[0..15] of String =
+       ('125 kBit/s',
+        '250 kBit/s',
         '500 kBit/s',
         '  1 MBit/s',
         '1,5 MBit/s',
         '  2 MBit/s',
         '  3 MBit/s',
-        '  4 MBit/s');
+        '  4 MBit/s',
+        '  5 MBit/s',
+        '  6 MBit/s',
+        '  7 MBit/s',
+        '  8 MBit/s',
+        '  9 MBit/s',
+        ' 10 MBit/s',
+        ' 11 MBit/s',
+        ' 12 MBit/s');
 
   DrvStatusStrings: array[0..8] of String =
-     ('Treiber DLL nicht geladen',         // Die Treiber DLL wurde noch nicht geladen
-      'Treiber nicht Initialisiert ',      // Treiber noch nicht Initialisiert (Funktion "CanInitDrv" noch nicht aufgerufen)
-      'Treiber DLL geladen',               // Treiber erfolgrich Initialisiert
-      'Port kann nicht geöffnet werden',   // Die Schnittstelle wurde nicht geöffnet
-      'System wird Initialisiert ...',     // Die Schnittstelle wurde geöffnet
-      'System wird Initialisiert ...',     // Verbindung zur Hardware wurde Hergestellt
-      'System Online',                     // Device wurde geöffnet und erfolgreich Initialisiert
-      'System Online',                     // CAN Bus RUN nur Transmitter (wird nicht verwendet !)
-      'System Online');                    // CAN Bus RUN
+     ('Treiber DLL nicht geladen',                          // Die Treiber DLL wurde noch nicht geladen
+      'Treiber nicht Initialisiert ',                       // Treiber noch nicht Initialisiert (Funktion "CanInitDrv" noch nicht aufgerufen)
+      'Treiber DLL geladen, CAN Interface nicht verbunden', // Treiber erfolgrich Initialisiert
+      'CAN Interface kann nicht geöffnet werden',           // Die Schnittstelle wurde nicht geöffnet
+      'System wird Initialisiert ...',                      // Die Schnittstelle wurde geöffnet
+      'System wird Initialisiert ...',                      // Verbindung zur Hardware wurde Hergestellt
+      'System Online',                                      // Device wurde geöffnet und erfolgreich Initialisiert
+      'System Online',                                      // CAN Bus RUN nur Transmitter (wird nicht verwendet !)
+      'System Online');                                     // CAN Bus RUN
 
   CanStatusStrings: array[0..5] of String =
      ('CAN: Ok',                  // Ok
@@ -72,6 +82,10 @@ const
       'CAN: Unbek. Fehler');      // Status Unbekannt
 
 type
+  TCanHwStatus = (CanHwClose,
+                  CanHwOpen,
+                  CanHwError);
+                   
   TDataRecord = (RecordStart,  { Aufzeichnung Starten bzw. läuft     }
                  RecordStop,   { Aufzeichnung Stopen                 }
                  RecordOV,     { FIFO Überlauf !                     }
@@ -130,7 +144,6 @@ type
     RxPanelShowMnu: TMenuItem;
     RxStatClearMnu: TMenuItem;
     N4: TMenuItem;
-    ConnectMnu: TMenuItem;
     N5: TMenuItem;
     RxShowAllMnu: TMenuItem;
     RxShowUsedMnu: TMenuItem;
@@ -154,7 +167,13 @@ type
     ShowToolBarMnu: TMenuItem;
     CanResetBtn: TToolButton;
     LomCheckBtn: TToolButton;
-    JustOne: TJustOne32;
+    HwInfoMnu: TMenuItem;
+    CanConnMnu: TMenuItem;
+    CanConnButton: TToolButton;
+    N11: TMenuItem;
+    XPManifest1: TXPManifest;
+    MhsCanUtil: TMhsCanUtil;
+    TCanJustOne: TJustOne32;
     procedure FormCreate(Sender: TObject);
     procedure StatusBarDrawPanel(StatusBar: TStatusBar; Panel: TStatusPanel; const Rect: TRect);
     procedure FormShow(Sender: TObject);
@@ -173,18 +192,9 @@ type
     procedure PrevMDIMnuClick(Sender: TObject);
     procedure Info1Click(Sender: TObject);
     procedure ProjectNewNmuClick(Sender: TObject);
-    procedure TinyCANCanPnPEvent(Sender: TObject; index: Cardinal;
-      status: Integer);
     procedure RxViewMnuClick(Sender: TObject);
-    procedure SaveTraceMnuClick(Sender: TObject);
-    procedure RxClearWinMnuClick(Sender: TObject);
-    procedure TxLoadMnuClick(Sender: TObject);
-    procedure TxSaveMnuClick(Sender: TObject);
-    procedure TxClearWinMnuClick(Sender: TObject);
     procedure RxPanelShowMnuClick(Sender: TObject);
-    procedure RxStatClearMnuClick(Sender: TObject);
     procedure RxShowMnuClick(Sender: TObject);
-    procedure ConnectMnuClick(Sender: TObject);
     procedure TraceSetupBtnClick(Sender: TObject);
     procedure TxIntervallOnBtnClick(Sender: TObject);
     procedure RxStartStopMnuClick(Sender: TObject);
@@ -192,10 +202,17 @@ type
     procedure LomCheckBtnClick(Sender: TObject);
     procedure RxPannelShowPopupClick(Sender: TObject);
     procedure RxShowPopupClick(Sender: TObject);
+    procedure TinyCANCanPnPEvent(Sender: TObject);
+    procedure HwInfoMnuClick(Sender: TObject);
+    procedure CmdExecClickMnu(Sender: TObject);
+    procedure CanConnMnuClick(Sender: TObject);
   private
     { Private-Deklarationen }
     ComThread: TComThread;
     SyncThread: TSyncThread;
+    FEnableTrace: boolean;
+    CanApiHandle: Pointer;
+    procedure SetEnableTrace(value: Boolean);
     procedure ComThreadTerminate;
     procedure SyncThreadTerminate;
     procedure RefreshStatusBar;
@@ -206,6 +223,7 @@ type
     RxPannelShow: boolean;
     RxShowingMode: integer;
     DataRecord: TDataRecord;
+    CanHwStatus: TCanHwStatus;
     RxOjectView: boolean;
     DrvStatus: TDrvStatus;
     CanStatus: TCanStatus;
@@ -215,9 +233,12 @@ type
     CanTxWin: TCanTxWin;
     CanFdTxWin: TCanFdTxWin;
     TinyCanEvent: Pointer;
-    CanDeviceIndex: DWORD;
+    TxList: TTxCanList;
+    procedure TxWinLoadFile;
+    procedure TxWinSaveFile;
     procedure SetupTxWindow;
     procedure RxCanUpdate;
+    procedure TxUpdateMessage(msg_idx: Integer);
     function MDIClientNew(ClientForm: TFormClass): TForm;
     function  MenuMDIClientHinzufuegen(Sender: TForm): TMenuItem;
     procedure MenuMDIClientEntfernen(MenuItem: TMenuItem);
@@ -225,12 +246,16 @@ type
     function LoadProject(filename: String): boolean;
     function SaveProject(filename: String): boolean;
     function SetListenOnly: Integer;
-    function ConnectHardware: Integer;
+    procedure ConnectHardware;
+    procedure DisconnectHardware;
     procedure SetProjectName;
     procedure SetSetup(mode : Integer);
     procedure DisplayHint(Sender: TObject);
     procedure SetRxPannelShow;
     procedure SetRxShowingMode;
+    procedure SetHwOpenClose;
+    function MainExecuteCmd(cmd: Longword; can_msg: PCanFdMsg; param1: Integer): Integer;
+    property EnableTrace: Boolean read FEnableTrace write SetEnableTrace;
   end;
 
   TComThread = class(TThread)
@@ -269,24 +294,37 @@ var
 
 implementation
 
-{$R *.dfm}
+{$R *.dfm}                      
 
 uses
-  Util, Setup, CanRxPrototyp, CanGaugeForm, CanValueForm, CanBitValueForm, NewChild;
+  Util, Setup, CanRxPrototyp, CanGaugeForm, CanValueForm, CanBitValueForm, CanBitTxForm,
+  CanTermForm, CanDataForm, CanGraph, NewChild;
 
 { TMainWin }
 
 procedure TMainWin.FormCreate(Sender: TObject);
 var cfg: TIniFile;
+    //res: Integer; <*>
+    //msg_str: String; <*> raus
 
 begin;
 InitUtil;
+MhsCanUtil.LoadCanUtil;
+{res := MhsCanUtil.LoadCanUtil;  <*> raus
+if res < 0 then
+  begin;
+  msg_str := Format('Beim laden der MHS CAN Utilities ist ein Fehler aufgetreten. Fehlercode: %d', [res]);
+  MessageDlg(msg_str, mtError, [mbOk], 0);
+  end;}
+CanApiHandle := nil;  
+TxList := TTxCanList.Create(self);
 SyncThread := TSyncThread.Create(self);
 DataRecord := RecordStop;
+CanHwStatus := CanHwClose;
 //StatusBar.Font.Style := [];
 cfg := TIniFile.Create(ChangeFileExt(Application.ExeName, '.ini'));
 try
-  ProjectFile := cfg.ReadString('GLOBAL', 'ProjectFile', '');  
+  ProjectFile := cfg.ReadString('GLOBAL', 'ProjectFile', '');
 finally
   cfg.Free;
   end;
@@ -306,13 +344,24 @@ if ProjectFile = '' then
   default_prj_file := TRUE;
   ProjectFile := ChangeFileExt(Application.ExeName, '.prj');
   end;
-if not LoadProject(ProjectFile) then  
+if LoadProject(ProjectFile) then
   begin;
-  if not default_prj_file then  
+  if SetupData.AutoHwOpen then
+    ConnectHardware;
+  end
+else
+  begin;
+  if not default_prj_file then
     ProjectFile := '';
+  LoadDefaultSetup;  
   NewProject;
   SetSetup(1);
-  end;   
+  end;
+if SetupData.AutoTraceStart and (CanHwStatus = CanHwOpen) then
+  begin;
+  DataRecord := RecordStart;
+  SetStartStop;
+  end;
 SetProjectName;  
 RefreshStatusBar;
 end;
@@ -322,10 +371,13 @@ procedure TMainWin.FormClose(Sender: TObject; var Action: TCloseAction);
 var cfg: TIniFile;
 
 begin;
+MhsCanUtil.DownCanUtil;
 TinyCAN.CanDeviceClose;
 ComThreadTerminate;    // muss vor SyncThreadTerminate aufgerufen werden
 SyncThreadTerminate;
 TinyCAN.DownDriver;
+CanApiHandle := nil;
+CanRxWin.Show;   // <*> Bgu Fix, MDI Fehler
 cfg := TIniFile.Create(ChangeFileExt(Application.ExeName, '.ini'));
 try
   cfg.WriteString('GLOBAL', 'ProjectFile', ProjectFile);
@@ -338,6 +390,8 @@ if ProjectFile <> '' then
   if not SaveProject(ProjectFile) then
     MessageDlg('Projekt (' + ProjectFile + ') kann nicht gespeichert werden', mtError, [mbOk], 0);
   end;
+if Assigned(TxList) then
+  FreeAndNil(TxList); // <*> Destroy ?
 DestroyUtil;
 end;
 
@@ -385,8 +439,8 @@ if not Assigned(CanRxWin) then
   CanRxWin := TCanRxWin(MDIClientNew(TCanRxWin));
 CanRxWin.Left := 2;
 CanRxWin.Top := 2;
-CanRxWin.Width := 600;
-CanRxWin.Height := 303;
+CanRxWin.Width := 110;
+CanRxWin.Height := 760;
 CanRxWin.Show;
 SetupTxWindow;
 end;
@@ -422,7 +476,7 @@ try
         if form_class <> nil then
           begin
           if form_class = TCanRxWin then          
-            form := CanRxWin          
+            form := CanRxWin
           else if form_class = TCanTxWin then
             begin;
             if CanTxWin = nil then
@@ -458,7 +512,9 @@ finally
   SectionsListe.Free;
   ini_file.Free;
   end;
+TxWinLoadFile;
 SetSetup(1);
+MainExecuteCmd(SYS_CMD_PRJ_LOAD_FINISH, nil, 0);
 end;
 
 
@@ -478,6 +534,7 @@ if MDIChildCount > 0 then
     self.MDIChildren[i].WindowState := wsNormal;
   Application.ProcessMessages;
   end;
+TxWinSaveFile;
 ConfigList := TStringList.Create;
 ini_file := TIniFile.Create(filename);
 try
@@ -533,20 +590,15 @@ end;
 function TMainWin.SetListenOnly: Integer;
 
 begin;
-if SetupData.ListenOnly then
-  result := TinyCAN.CanSetMode(0, OP_CAN_START_LOM, CAN_CMD_ALL_CLEAR)
+if CanHwStatus = CanHwOpen then
+  begin;
+  if SetupData.ListenOnly then
+    result := TinyCAN.CanSetMode(0, OP_CAN_START_LOM, CAN_CMD_ALL_CLEAR)
+  else
+    result := TinyCAN.CanSetMode(0, OP_CAN_START, CAN_CMD_ALL_CLEAR);
+  end
 else
-  result := TinyCAN.CanSetMode(0, OP_CAN_START, CAN_CMD_ALL_CLEAR);
-end;
-
-
-function TMainWin.ConnectHardware: Integer;
-
-begin;
-result := TinyCAN.CanDeviceOpen;
-if result < 0 then
-  exit;
-result := SetListenOnly;
+  result := 0;
 end;
 
 
@@ -555,7 +607,7 @@ begin;
 if ProjectFile = '' then
   MainWin.Caption := 'CANcool - Kein Project geladen' 
 else
-  MainWin.Caption := 'CANcool - ' + ExtractFileName(ProjectFile); 
+  MainWin.Caption := 'CANcool - ' + ExtractFileName(ProjectFile);
 end;
 
 
@@ -563,10 +615,15 @@ procedure TMainWin.SetSetup(mode : Integer);
 var trace_clear: boolean;
     max_clumps: Integer;
     open_run: Integer;
+    res: Integer;    
+    //msg_str: String; <*> raus
 
 begin;
 trace_clear := FALSE;
-open_run := 0;
+if CanHwStatus = CanHwOpen then
+  open_run := 1
+else
+  open_run := 0;
 if Assigned(ComThread) then
   ComThread.DisableCanEvents;
 SyncThread.DisableSync;
@@ -574,10 +631,23 @@ if mode > 0 then
   begin;
   trace_clear := TRUE;
   ComThreadTerminate;
+  DisconnectHardware;
+  MhsCanUtil.CanUtilRegisterDriver(CanApiHandle, 0);
   if SetupData.Driver = 0 then
-    TinyCAN.TreiberName := 'mhstcan.dll'   // Tiny-CAN
+    begin;
+    TinyCAN.TreiberName := 'mhstcan.dll';      // Tiny-CAN
+    TinyCan.DeviceName := '';
+    end
+  else if SetupData.Driver = 1 then
+    begin;
+    TinyCAN.TreiberName := 'mhsslcan.dll';     // SL-CAN
+    TinyCan.DeviceName := '';
+    end
   else
-    TinyCAN.TreiberName := 'mhsslcan.dll'; // SL-CAN
+    begin;
+    TinyCAN.TreiberName := 'mhspassthru.dll'; // PassThru
+    TinyCan.DeviceName := SetupData.DeviceName;
+    end;
   TinyCan.InterfaceType := TInterfaceType(SetupData.InterfaceType);
   TinyCan.Port := SetupData.Port;
   if (SetupData.Driver = 0) and (TinyCan.InterfaceType = INTERFACE_USB) then
@@ -585,21 +655,35 @@ if mode > 0 then
   else
     TinyCan.BaudRate := TSerialBaudRate(SetupData.BaudRate+1);
   TinyCan.DeviceSnr := SetupData.HardwareSnr;
-  TinyCan.FdMode := SetupData.CanFd;
+  //TinyCan.FdMode := SetupData.CanFd; <*> raus
   TinyCan.CanFifoOvClear := SetupData.CanFifoOvClear;
   TinyCan.CanFifoOvMessages := SetupData.CanFifoOvMessages;
+  
   if TinyCAN.LoadDriver = 0 then
     begin
-    TinyCAN.CanExCreateDevice(CanDeviceIndex, '');
+    res := TinyCan.MhsCanGetApiHandle(@CanApiHandle);
+    if res > 0 then
+      begin
+      MhsCanUtil.CanUtilRegisterDriver(CanApiHandle, res);
+      {res := MhsCanUtil.CanUtilRegisterDriver(CanApiHandle, res); <*> raus
+      if res < 0 then
+        begin;
+        msg_str := Format('Beim "CanUtilRegisterDriver" ist ein Fehler aufgetreten. Fehlercode: %d', [res]);
+        MessageDlg(msg_str, mtError, [mbOk], 0);
+        end;}
+      end;
     TinyCanEvent := TinyCAN.CanExCreateEvent;
     TinyCAN.CanExCreateFifo($80000000, 30000, TinyCanEvent, RX_EVENT, $FFFFFFFF);
-    ComThread := TComThread.Create(self);    
-    open_run := 2;
+    ComThread := TComThread.Create(self);
+    if open_run > 0 then
+      open_run := 2;
     end;
   end;
 SetupTxWindow();
+//CanRxWin.SetSetup;<*>
 if Assigned(CanRxWin) then
   begin
+  CanRxWin.RxList.FdMode := SetupData.CanFd;
   if CanRxWin.RxList.ClumpSize <> SetupData.RxDBufferSize then
     trace_clear := TRUE;
   if SetupData.RxDEnableDynamic then
@@ -607,18 +691,21 @@ if Assigned(CanRxWin) then
   else
     max_clumps := 1;
   if max_clumps <> CanRxWin.RxList.MaxClumps then
-    trace_clear := TRUE;    
+    trace_clear := TRUE;
   if trace_clear then
     begin;
-    CanRxWin.ExecuteCmd(RX_WIN_STOP_TRACE, nil);
-    CanRxWin.ExecuteCmd(RX_WIN_CLEAR, nil);
+    //MainExecuteCmd(RX_WIN_STOP_TRACE, nil, 0); <*>
+    EnableTrace := FALSE;
+    MainExecuteCmd(RX_WIN_CLEAR, nil, 0);
     end;
   CanRxWin.RxList.ClumpSize := SetupData.RxDBufferSize;
   if SetupData.RxDEnableDynamic then
     CanRxWin.RxList.MaxClumps := SetupData.RxDLimit
   else
     CanRxWin.RxList.MaxClumps := 1;
-  end;  
+  end;
+MainExecuteCmd(SYS_CMD_SET_SETUP, nil, 0);  // <*> neu
+TinyCan.CanClockIndex := SetupData.CanClockIndex;
 TinyCan.CanSpeed := TCanSpeed(SetupData.CANSpeed);  
 TinyCan.CanSpeedBtr := SetupData.NBTRValue;
 TinyCan.CanFdSpeed := TCanFdSpeed(SetupData.CANDataSpeed);
@@ -626,17 +713,21 @@ TinyCan.CanFdDbtr := SetupData.DBTRValue;
 if SetupData.ShowErrorMessages then
   TinyCan.OptionsStr := 'CanErrorMsgsEnable=1'
 else
-  TinyCan.OptionsStr := 'CanErrorMsgsEnable=0';
-if (open_run = 0) and (LomCheckBtn.Down <> SetupData.ListenOnly) then  
-  open_run := 1;   
+  TinyCan.OptionsStr := 'CanErrorMsgsEnable=0';   
 LomCheckBtn.Down := SetupData.ListenOnly;
 TinyCan.CanSetOptions;
 if open_run = 2 then
   ConnectHardware
-else if open_run = 1 then
+else
   SetListenOnly;
-ComThread.EnableCanEvents;
+if Assigned(ComThread) then
+  ComThread.EnableCanEvents;
 SyncThread.EnableSync;
+if SetupData.AutoTraceStart and (CanHwStatus = CanHwOpen) then
+  begin;
+  DataRecord := RecordStart;
+  SetStartStop;
+  end;
 RefreshStatusBar;
 end;
 
@@ -660,6 +751,8 @@ if SetupData.CanFd then
   else
     begin;
     CanFdTxWin := TCanFdTxWin(MDIClientNew(TCanFdTxWin));
+    TxList.FdMode := TRUE;
+    CanFdTxWin.SetTxList(TxList);
     CanFdTxWin.Left := 2;
     CanFdTxWin.Top := 309;
     CanFdTxWin.Width := 880;
@@ -683,12 +776,14 @@ else
   else
     begin
     CanTxWin := TCanTxWin(MDIClientNew(TCanTxWin));
+    TxList.FdMode := FALSE;
+    CanTxWin.SetTxList(TxList);
     CanTxWin.Left := 2;
     CanTxWin.Top := 309;
     CanTxWin.Width := 880;
     CanTxWin.Height := 254;
     CanTxWin.Show;    
-    end;    
+    end;
   end;
 end;
 
@@ -768,13 +863,6 @@ if DrvStatus < DRV_STATUS_CAN_RUN then
     SetStartStop;
     end;
   end;
-RefreshStatusBar;
-end;
-
-
-procedure TMainWin.TinyCANCanPnPEvent(Sender: TObject; index: Cardinal;
-  status: Integer);
-begin
 RefreshStatusBar;
 end;
 
@@ -866,13 +954,6 @@ if i > -1 then
 end;
 
 
-procedure TMainWin.ConnectMnuClick(Sender: TObject);
-begin
-if ConnectHardware < 0 then
-  MessageDlg('Fehler beim öffnen des Device', mtError, [mbOk], 0);
-RefreshStatusBar;
-end;
-
 procedure TMainWin.BeendenMnuClick(Sender: TObject);
 
 begin
@@ -883,8 +964,11 @@ end;
 procedure TMainWin.ResetMnuClick(Sender: TObject);
 
 begin
-TinyCAN.CanSetMode(0, OP_CAN_RESET, CAN_CMD_RXD_FIFOS_CLEAR or CAN_CMD_TXD_FIFOS_CLEAR);
-RefreshStatusBar;
+if CanHwStatus = CanHwOpen then
+  begin;
+  TinyCAN.CanSetMode(0, OP_CAN_RESET, CAN_CMD_RXD_FIFOS_CLEAR or CAN_CMD_TXD_FIFOS_CLEAR);
+  RefreshStatusBar;
+  end;
 end;
 
 
@@ -949,9 +1033,9 @@ RxPanelShowPopup.Checked := RxPannelShow;
 if Assigned(CanRxWin) then
   begin;
   if RxPannelShow then
-    CanRxWin.ExecuteCmd(RX_WIN_SHOW_RX_PANNEL, nil)
+    MainExecuteCmd(RX_WIN_SHOW_RX_PANNEL, nil, 0)
   else
-    CanRxWin.ExecuteCmd(RX_WIN_HIDE_RX_PANNEL, nil);
+    MainExecuteCmd(RX_WIN_HIDE_RX_PANNEL, nil, 0);
   end;
 end;
 
@@ -968,13 +1052,6 @@ procedure TMainWin.RxPannelShowPopupClick(Sender: TObject);
 begin
 RxPannelShow := RxPanelShowPopup.Checked;
 SetRxPannelShow;
-end;
-
-
-procedure TMainWin.RxStatClearMnuClick(Sender: TObject);
-begin
-if Assigned(CanRxWin) then
-  CanRxWin.ExecuteCmd(RX_WIN_STAT_CLEAR, nil);
 end;
 
 
@@ -999,12 +1076,97 @@ else
 if Assigned(CanRxWin) then
   begin;
   if RxShowingMode = 1 then
-    CanRxWin.ExecuteCmd(RX_WIN_SHOW_USED_MSG, nil)
+    MainExecuteCmd(RX_WIN_SHOW_USED_MSG, nil, 0)
   else if RxShowingMode = 2 then
-    CanRxWin.ExecuteCmd(RX_WIN_SHOW_UNUSED_MSG, nil)
+    MainExecuteCmd(RX_WIN_SHOW_UNUSED_MSG, nil, 0)
   else
-    CanRxWin.ExecuteCmd(RX_WIN_SHOW_ALL_MSG, nil);
+    MainExecuteCmd(RX_WIN_SHOW_ALL_MSG, nil, 0);
   end;
+end;
+
+
+procedure TMainWin.ConnectHardware;
+
+begin;
+if CanHwStatus <> CanHwOpen then
+  begin;
+  CanHwStatus := CanHwOpen;
+  SetHwOpenClose;
+  end;
+end;
+
+
+procedure TMainWin.DisconnectHardware;
+
+begin;
+CanHwStatus := CanHwClose;
+SetHwOpenClose;
+end;
+
+
+procedure TMainWin.SetHwOpenClose;
+var res: Integer;
+
+begin
+if CanHwStatus in [CanHwOpen, CanHwError] then
+  begin;
+  res := TinyCAN.CanDeviceOpen;
+  if res > -1 then
+    res := SetListenOnly;  
+  if res < 0 then
+    begin;
+    MessageDlg('Fehler beim öffnen des Device', mtError, [mbOk], 0);
+    CanHwStatus := CanHwError;
+    end;
+  end
+else
+  TinyCAN.CanDeviceClose;
+if CanHwStatus = CanHwOpen then
+  begin;
+  // Buttom
+  CanConnButton.Down := True;
+  CanConnButton.ImageIndex := 15;
+  CanConnButton.Caption := 'Verbunden';
+  // Menue
+  CanConnMnu.Caption := 'CAN trennen';
+  end
+else
+  begin;
+  // Buttom
+  CanConnButton.Down := False;
+  CanConnButton.ImageIndex := 16;
+  CanConnButton.Caption := 'Getrennt';
+  // Menue
+  CanConnMnu.Caption := 'CAN verbinden';
+  end;
+RefreshStatusBar;
+end;
+
+
+function TMainWin.MainExecuteCmd(cmd: Longword; can_msg: PCanFdMsg; param1: Integer): Integer;
+var i: DWORD;
+    form: TForm;
+
+begin
+result := 0;
+if MDIChildCount > 0 then
+  begin;
+  for i := 0 to MDIChildCount - 1 do
+    begin
+    form := MDIChildren[i];
+    if (form is TCanRxPrototypForm) then
+      begin;
+      if not TCanRxPrototypForm(form).CheckEventsLock then
+        begin; 
+        if (TCanRxPrototypForm(form).CommandMask and cmd) > 0 then
+          begin;
+          if TCanRxPrototypForm(form).ExecuteCmd(cmd, can_msg, param1) < 0 then
+            result := -1;
+          end;  
+        end;  
+      end;
+    end;
+  end;  
 end;
 
 
@@ -1033,65 +1195,58 @@ SetRxShowingMode;
 end;
 
 
-procedure TMainWin.SaveTraceMnuClick(Sender: TObject);
+procedure TMainWin.CanConnMnuClick(Sender: TObject);
+
 begin
-if Assigned(CanRxWin) then
-  CanRxWin.ExecuteCmd(RX_WIN_SAVE_TRACE, nil);
+if CanHwStatus in [CanHwClose, CanHwError] then
+  CanHwStatus := CanHwOpen
+else
+  CanHwStatus := CanHwClose;                                  
+SetHwOpenClose;
+if SetupData.AutoTraceStart and (CanHwStatus = CanHwOpen) then
+  begin;
+  DataRecord := RecordStart;
+  SetStartStop;
+  end;
 end;
 
 
-procedure TMainWin.RxClearWinMnuClick(Sender: TObject);
+procedure TMainWin.CmdExecClickMnu(Sender: TObject);
+var cmd: Longword;
+
 begin
-if Assigned(CanRxWin) then
-  CanRxWin.ExecuteCmd(RX_WIN_CLEAR, nil);
+cmd := TMenuItem(Sender).Tag;
+MainExecuteCmd(cmd, nil, 0);
 end;
 
 
-procedure TMainWin.TxLoadMnuClick(Sender: TObject);
+procedure TMainWin.TxUpdateMessage(msg_idx: Integer);
 begin
 if SetupData.CanFd then
   begin;
   if Assigned(CanFdTxWin) then
-    CanFdTxWin.ExecuteCmd(TX_WIN_LOAD, nil);
+    CanFdTxWin.ExecuteCmd(TX_WIN_UPDATE_MSG, nil, msg_idx);
   end
 else 
   begin;
   if Assigned(CanTxWin) then
-    CanTxWin.ExecuteCmd(TX_WIN_LOAD, nil);
-  end;     
+    CanTxWin.ExecuteCmd(TX_WIN_UPDATE_MSG, nil, msg_idx);
+  end; 
 end;
 
 
-procedure TMainWin.TxSaveMnuClick(Sender: TObject);
+procedure TMainWin.TxWinLoadFile;
 begin
-if SetupData.CanFd then
-  begin;
-  if Assigned(CanFdTxWin) then
-    CanFdTxWin.ExecuteCmd(TX_WIN_SAVE, nil);
-  end  
-else 
-  begin;
-  if Assigned(CanTxWin) then
-    CanTxWin.ExecuteCmd(TX_WIN_SAVE, nil);
-  end;     
+MainExecuteCmd(TX_WIN_LOAD_FILE, nil, 0);
 end;
 
 
-procedure TMainWin.TxClearWinMnuClick(Sender: TObject);
+procedure TMainWin.TxWinSaveFile;
 begin
-if SetupData.CanFd then
-  begin;
-  if Assigned(CanFdTxWin) then
-    CanFdTxWin.ExecuteCmd(TX_WIN_CLEAR, nil);
-  end
-else 
-  begin;
-  if Assigned(CanTxWin) then
-    CanTxWin.ExecuteCmd(TX_WIN_CLEAR, nil);
-  end;   
+MainExecuteCmd(TX_WIN_SAVE_FILE, nil, 0);
 end;
 
-
+  
 procedure TMainWin.SetRxObjView;
 
 begin;
@@ -1100,14 +1255,49 @@ if RxOjectView then
   TraceObjListBtn.Down := True;
   RxObjectViewMnu.Checked := True;
   if Assigned(CanRxWin) then
-    CanRxWin.ExecuteCmd(RX_WIN_SHOW_OBJECT, nil);
+    MainExecuteCmd(RX_WIN_SHOW_OBJECT, nil, 0);
   end
 else
   begin;
   TraceObjListBtn.Down := False;
   RxTraceViewMnu.Checked := True;
   if Assigned(CanRxWin) then
-    CanRxWin.ExecuteCmd(RX_WIN_SHOW_TRACE, nil);
+    MainExecuteCmd(RX_WIN_SHOW_TRACE, nil, 0);
+  end;
+end;
+
+
+procedure TMainWin.SetEnableTrace(value: Boolean);
+
+begin;
+FEnableTrace := value;
+if FEnableTrace then
+  begin;
+  // **** Enable Trace
+  // Button
+  TraceStartStopBtn.Down := True;
+  TraceStartStopBtn.ImageIndex := 10;
+  TraceStartStopBtn.Caption := 'Stop';
+  // Menü
+  RxStartStopMnu.Caption := 'Aufzeichnung stoppen';  
+  // Setup sperren
+  SetupBtn.Enabled := False;
+  Einstellungen1.Enabled := False;  
+  MainExecuteCmd(RX_WIN_START_TRACE, nil, 0);
+  end
+else
+  begin;
+  // **** Disable Trace
+  // Button
+  TraceStartStopBtn.Down := False;
+  TraceStartStopBtn.ImageIndex := 9;
+  TraceStartStopBtn.Caption := 'Start';
+  // Menü
+  RxStartStopMnu.Caption := 'Aufzeichnung starten';  
+  // Setup freigeben
+  SetupBtn.Enabled := True;
+  Einstellungen1.Enabled := True;
+  MainExecuteCmd(RX_WIN_STOP_TRACE, nil, 0);
   end;
 end;
 
@@ -1121,14 +1311,6 @@ if not Assigned(CanRxWin) then
   exit;
 if DataRecord in [RecordStart, RecordOV] then
   begin;
-  TraceStartStopBtn.Down := True;
-  TraceStartStopBtn.ImageIndex := 10;
-  TraceStartStopBtn.Caption := 'Stop';
-  RxStartStopMnu.Caption := 'Aufzeichnung stoppen';
-  // Setup sperren
-  SetupBtn.Enabled := False;
-  Einstellungen1.Enabled := False;
-  ConnectMnu.Enabled := False;
   if SetupData.DataClearMode = 0 then
     clear_data := TRUE
   else if SetupData.DataClearMode = 1 then
@@ -1140,21 +1322,11 @@ if DataRecord in [RecordStart, RecordOV] then
       end;
     end;
   if clear_data then
-    CanRxWin.ExecuteCmd(RX_WIN_CLEAR, nil);
-  CanRxWin.ExecuteCmd(RX_WIN_START_TRACE, nil);
+    MainExecuteCmd(RX_WIN_CLEAR, nil, 0);
+  EnableTrace := TRUE;
   end
 else
-  begin;
-  // Setup sperren
-  SetupBtn.Enabled := True;
-  Einstellungen1.Enabled := True;
-  ConnectMnu.Enabled := True;
-  TraceStartStopBtn.Down := False;
-  TraceStartStopBtn.ImageIndex := 9;
-  TraceStartStopBtn.Caption := 'Start';
-  RxStartStopMnu.Caption := 'Aufzeichnung starten';
-  CanRxWin.ExecuteCmd(RX_WIN_STOP_TRACE, nil);
-  end;
+  EnableTrace := FALSE;
 end;
 
 
@@ -1175,12 +1347,12 @@ else
 if SetupData.CanFd then   
   begin;
   if Assigned(CanFdTxWin) then
-    CanFdTxWin.ExecuteCmd(cmd, nil);
+    CanFdTxWin.ExecuteCmd(cmd, nil, 0);
   end
 else
   begin;
   if Assigned(CanTxWin) then
-    CanTxWin.ExecuteCmd(cmd, nil);
+    CanTxWin.ExecuteCmd(cmd, nil, 0);
   end;
 end;
 
@@ -1306,8 +1478,11 @@ while not Terminated do
           form := Owner.MDIChildren[i];
           if (form is TCanRxPrototypForm) then
             begin;                  
-            if (form <> Owner.CanRxWin) and (form <> Owner.CanTxWin) and (form <> Owner.CanFdTxWin) then
-              TCanRxPrototypForm(form).RxCanMessages(RxMsgBuffer, count);
+            if not TCanRxPrototypForm(form).CheckEventsLock then
+              begin;
+              if (form <> Owner.CanRxWin) and (form <> Owner.CanTxWin) and (form <> Owner.CanFdTxWin) then
+                TCanRxPrototypForm(form).RxCanMessages(RxMsgBuffer, count);
+              end;  
             end;
           end;
         if Owner.CanRxWin <> nil then
@@ -1352,17 +1527,20 @@ var i: DWORD;
 begin
 if MDIChildCount > 0 then
   begin;
-  for i := 0 to MDIChildCount-1 do
+  for i := 0 to MDIChildCount - 1 do
     begin
     form := MDIChildren[i];
     if (form is TCanRxPrototypForm) then
       begin;
-      if (form <> CanRxWin) and (form <> CanTxWin) and (form <> CanFdTxWin) then
-        TCanRxPrototypForm(form).RxCanUpdate;
+      if not TCanRxPrototypForm(form).CheckEventsLock then
+        begin;
+        if (form <> CanRxWin) and (form <> CanTxWin) and (form <> CanFdTxWin) then
+          TCanRxPrototypForm(form).RxCanUpdate;
+        end;  
       end;
     end;
   if CanRxWin <> nil then
-    CanRxWin.RxCanUpdate;
+    CanRxWin.RxCanUpdate;    
   if SetupData.CanFd then  
     begin;  
     if CanFdTxWin <> nil then
@@ -1409,7 +1587,7 @@ end;
 procedure TSyncThread.DisableSync; 
 
 begin;
-EventsLock := TRUE; 
+EventsLock := TRUE;
 end;
 
 
@@ -1449,9 +1627,28 @@ CloseHandle(SyncEvent);
 end;
 
 
+procedure TMainWin.TinyCANCanPnPEvent(Sender: TObject);
+
+begin
+RefreshStatusBar;
+end;
+
+
+procedure TMainWin.HwInfoMnuClick(Sender: TObject);
+var info_list: TCanInfoVarObj;
+    device_info: TCanDeviceInfo;
+
+begin
+info_list := TinyCAN.CanExGetDeviceInfo(TinyCan.DeviceIndex, device_info);
+if info_list = nil then
+  exit;
+HwInfoForm.Execute(info_list, 'Hardware Info');
+end;
+
+
 initialization
   RegisterClasses([TCanRxWin, TCanTxWin, TCanFdTxWin,
-        TCanGaugeWin, TCanBitValueWin,
-        TCanValueWin]); // TGraphWin
+        TCanGaugeWin, TCanBitValueWin, TCanBitTxWin,
+        TCanValueWin, TCanTermWin, TCanDataWin, TCanGraphWin]);
 
 end.

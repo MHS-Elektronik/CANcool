@@ -1,9 +1,10 @@
 {***************************************************************************
-                       Can-Cool.dpr  -  description
+                         CANcool.dpr  -  description
                              -------------------
     begin             : 03.12.2012
-    copyright         : (C) 2012 by MHS-Elektronik GmbH & Co. KG, Germany
-    autho             : Klaus Demlehner, klaus@mhs-elektronik.de
+    last modified     : 01.01.2022    
+    copyright         : (C) 2012 - 2022 by MHS-Elektronik GmbH & Co. KG, Germany
+    author            : Klaus Demlehner, klaus@mhs-elektronik.de
  ***************************************************************************}
 
 {***************************************************************************
@@ -36,15 +37,32 @@ uses
   ObjCanRx in 'ObjCanRx.pas',
   CanRxSaveForm in 'CanRxSaveForm.pas' {TraceSaveProgress},
   CanFdTxForm in 'CanFdTxForm.pas' {CanFdTxWin},
-  CanTxForm in 'CanTxForm.pas' {CanTxWin};
+  CanTxForm in 'CanTxForm.pas' {CanTxWin},
+  HwInfo in 'HwInfo.pas' {HwInfoForm},
+  CanBitTxForm in 'CanBitTxForm.pas' {CanBitTxWin},
+  CanBitTxSetupForm in 'CanBitTxSetupForm.pas' {CanBitTxSetupWin},
+  CanTermSetupForm in 'CanTermSetupForm.pas' {CanTermSetupWin},
+  CanTermForm in 'CanTermForm.pas' {CanTermWin},
+  CanDataForm in 'CanDataForm.pas' {CanDataWin},
+  CanDataSetupForm in 'CanDataSetupForm.pas' {CanDataSetupWin},
+  CanGraph in 'CanGraph.pas' {CanGraphWin},
+  CanGraphSetupForm in 'CanGraphSetupForm.pas' {CanGraphSetupWin},
+  SplashForm in 'SplashForm.pas' {SplashWin};
+
 {$R *.res}
 
 begin
-  Application.Initialize;
-  Application.Title := 'CANcool';
-  Application.CreateForm(TMainWin, MainWin);
-  Sleep(2500);
-  //SplashForm.Hide;
-  //SplashForm.Free;
+SplashWin := TSplashWin.Create(Application);
+SplashWin.Hide;
+  try
+    //SplashWin.Show; <*>
+    //SplashWin.Refresh;
+    Application.Initialize;
+    Application.Title := 'CANcool';
+    Application.CreateForm(TMainWin, MainWin);
+    Application.CreateForm(THwInfoForm, HwInfoForm);
+  finally
+    SplashWin.InitializationDone := True;
+  end;
   Application.Run;
 end.   

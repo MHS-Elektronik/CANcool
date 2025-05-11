@@ -1,8 +1,8 @@
 object CanBitValueSetupWin: TCanBitValueSetupWin
-  Left = 1174
-  Top = 492
+  Left = 1474
+  Top = 1440
   Width = 610
-  Height = 593
+  Height = 588
   AutoSize = True
   BorderWidth = 3
   Caption = 'Bit Indikator Konfiguration'
@@ -542,5 +542,80 @@ object CanBitValueSetupWin: TCanBitValueSetupWin
       Caption = 'Aktivieren'
       TabOrder = 17
     end
+  end
+  object FdBitComboBox: TComboBox
+    Left = 388
+    Top = 46
+    Width = 61
+    Height = 24
+    Style = csDropDownList
+    ItemHeight = 16
+    TabOrder = 12
+    OnExit = ComboBoxExit
+    Items.Strings = (
+      '0'
+      '1'
+      '2'
+      '3'
+      '4'
+      '5'
+      '6'
+      '7'
+      '8'
+      '9'
+      '10'
+      '11'
+      '12'
+      '13'
+      '14'
+      '15'
+      '16'
+      '17'
+      '18'
+      '19'
+      '20'
+      '21'
+      '22'
+      '23'
+      '24'
+      '25'
+      '26'
+      '27'
+      '28'
+      '29'
+      '30'
+      '31'
+      '32'
+      '33'
+      '34'
+      '35'
+      '36'
+      '37'
+      '38'
+      '39'
+      '40'
+      '41'
+      '42'
+      '43'
+      '44'
+      '45'
+      '46'
+      '47'
+      '48'
+      '49'
+      '50'
+      '51'
+      '52'
+      '53'
+      '54'
+      '55'
+      '56'
+      '57'
+      '58'
+      '59'
+      '60'
+      '61'
+      '62'
+      '63')
   end
 end

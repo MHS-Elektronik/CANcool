@@ -2,10 +2,10 @@
                        CanRxPrototyp.pas  -  description
                              -------------------
     begin             : 07.01.2013
-    last modified     : 17.01.2016    
-    copyright         : (C) 2013 - 2016 by MHS-Elektronik GmbH & Co. KG, Germany
+    last modified     : 25.12.2021    
+    copyright         : (C) 2013 - 2021 by MHS-Elektronik GmbH & Co. KG, Germany
                                http://www.mhs-elektronik.de
-    autho             : Klaus Demlehner, klaus@mhs-elektronik.de
+    author            : Klaus Demlehner, klaus@mhs-elektronik.de
  ***************************************************************************}
 
 {***************************************************************************
@@ -19,7 +19,7 @@ unit CanRxPrototyp;
 
 interface
 
-uses Windows, Forms, Classes, Dialogs, Menus, TinyCanDrv;
+uses Windows, Forms, Classes, Dialogs, Menus, TinyCanDrv, CanCoolDefs;
 
 type
   TCanRxPrototypForm = class(TForm)
@@ -29,9 +29,16 @@ type
   private
     { Private-Deklarationen }
   protected
-    WindowMenuItem: TMenuItem;
+    WidgetAktiv: boolean;
+    EventsLocked: boolean; 
+    WindowMenuItem: TMenuItem;        
   public
-    { Public-Deklarationen }
+    { Public-Deklarationen }   
+    CommandMask: Longword;
+    function CheckEventsLock: boolean;
+    procedure EventsLock;
+    procedure EventsUnlock;
+    function ExecuteCmd(cmd: Longword; can_msg: PCanFdMsg; param1: Integer): Integer; virtual;
     procedure RxCanMessages(can_msg: PCanFdMsg; count: Integer); virtual;
     procedure RxCanUpdate; virtual;
     procedure SaveConfig(ConfigList: TStrings); virtual;
@@ -40,7 +47,7 @@ type
 
 implementation
 
-uses MainForm;
+uses MainForm, util;
 
 {$R *.dfm}
 
@@ -50,6 +57,9 @@ procedure TCanRxPrototypForm.FormCreate(Sender: TObject);
 var MenuHandle: HMENU;
 
 begin
+CommandMask := SYS_COMMAND;
+EventsLocked := False;
+WidgetAktiv := True;
 WindowMenuItem := TMainWin(owner).MenuMDIClientHinzufuegen(self);
 MenuHandle := GetSystemMenu(Self.Handle, False);
 DeleteMenu(MenuHandle, 7, MF_BYPOSITION);
@@ -61,8 +71,36 @@ end;
 procedure TCanRxPrototypForm.FormClose(Sender: TObject; var Action: TCloseAction);
 
 begin
+EventsLock;
 TMainWin(owner).MenuMDIClientEntfernen(WindowMenuItem);
 Action := caFree;
+end;
+
+
+function TCanRxPrototypForm.CheckEventsLock: boolean;
+
+begin;
+result := FALSE;
+if (not WidgetAktiv) or EventsLocked then
+  result := TRUE;
+end;  
+
+
+procedure TCanRxPrototypForm.EventsLock;
+
+begin
+RxCanEnterCritical;
+EventsLocked := True;
+RxCanLeaveCritical;
+end;
+
+
+procedure TCanRxPrototypForm.EventsUnlock;
+
+begin
+RxCanEnterCritical;
+EventsLocked := False;
+RxCanLeaveCritical;
 end;
 
 
@@ -91,6 +129,13 @@ procedure TCanRxPrototypForm.SaveConfig(ConfigList: TStrings);
 
 begin
   ;
+end;
+
+
+function TCanRxPrototypForm.ExecuteCmd(cmd: Longword; can_msg: PCanFdMsg; param1: Integer): Integer;
+
+begin;
+result := 0;
 end;
 
 

@@ -1,5 +1,9 @@
 unit RackCtls;
 
+{$IFDEF FPC}
+  {$MODE Delphi}
+{$ENDIF}
+
 { RackControls:
   TLEDButton, TButtonPanel, TScrewPanel, TLEDDisplay, TLEDMeter
 
@@ -29,8 +33,15 @@ interface
 {$I SRDefine.inc}
 
 uses
-  {$IFDEF SR_Win32} Windows, {$ELSE} WinTypes, WinProcs, Menus, {$ENDIF} Classes,
-  Graphics, Controls, ExtCtrls, SysUtils, Messages, Forms;
+{$IFnDEF FPC}
+  WinProcs, WinTypes,
+{$ELSE}
+  LResources, LCLIntf, LCLType,
+{$ENDIF}
+  Classes, Graphics, Controls, ExtCtrls, SysUtils, Messages, Forms;
+
+ // {$IFDEF SR_Win32} Windows, {$ELSE} WinTypes, WinProcs, Menus, {$ENDIF} Classes, <*>
+ // Graphics, Controls, ExtCtrls, SysUtils, Messages, Forms;
 
 type
   TBorderStyle     = (bsNone, bsSingle);
@@ -202,7 +213,9 @@ type
     property BorderStyle: TBorderStyle read FBorderStyle write SetBorderStyle;
     property Caption;
     property Color: TColor read FColor write SetColor;
+{$IFnDEF FPC}
     property Ctl3D;
+{$ENDIF}
     property Depth: integer read FDepth write SetDepth;
     property DragCursor;
     property DragMode;
@@ -211,10 +224,14 @@ type
     property FullRepaint;
     {$ENDIF}
     property Font;
+{$IFnDEF FPC}    
     property Locked;
+{$ENDIF}    
     property PanelDirection: TButtonDirection read FPanelDirection write SetPanelDirection;
     property ParentColor;
+{$IFnDEF FPC}
     property ParentCtl3D;
+{$ENDIF}
     property ParentFont;
     property ParentShowHint;
     property PopupMenu;
@@ -277,7 +294,9 @@ type
     property BorderStyle;
     property Caption;
     property Color: TColor read FColor write SetColor;
+{$IFnDEF FPC}
     property Ctl3D;
+{$ENDIF}
     property DragCursor;
     property DragMode;
     property Enabled;
@@ -285,10 +304,14 @@ type
     property FullRepaint;
     {$ENDIF}
     property Font;
+{$IFnDEF FPC}    
     property Locked;
+{$ENDIF}    
     property Margin: integer read FMargin write SetMargin;
     property ParentColor;
+{$IFnDEF FPC}
     property ParentCtl3D;
+{$ENDIF}
     property ParentFont;
     property ParentShowHint;
     property PopupMenu;

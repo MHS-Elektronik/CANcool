@@ -1,5 +1,9 @@
 unit SRUtils;
 
+{$IFDEF FPC}
+  {$MODE Delphi}
+{$ENDIF}
+
 {----------------------------------------------------------------------}
 {  Version  : 1.51                                                     }
 {  Autor    : Simon Reinhardt                                          }
@@ -183,7 +187,7 @@ const
     set of char = ['\','/',':','*','?','"','<','>','|'];
   { Gültige Zeichen fuer E-Mail-Adressen: }
   AllowedMailChars :
-    set of char = ['A'..'Z', 'a'..'z', '0'..'9', 'q', '.', '_', '-', '@'];
+    set of char = ['A'..'Z', 'a'..'z', '0'..'9', '.', '_', '-', '@'];
 
   { Bezeichner für relative Datumsangaben in DateTimeToStrDef und DateToStrDef: }
   PeriodNames :

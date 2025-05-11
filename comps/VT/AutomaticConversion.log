@@ -1,0 +1,17 @@
+OverbyteIcsWinnls.pas Note: Repariere Include-Dateien : include\OverbyteIcsDefs.inc
+ : 
+OverbyteIcsEmulVT.pas Note: Kodierung von cp1252 zu UTF-8 geändert
+OverbyteIcsEmulVT.pas Note: Repariere Include-Dateien : include\OverbyteIcsDefs.inc
+ : 
+OverbyteIcsMD5.pas Note: Kodierung von cp1252 zu UTF-8 geändert
+OverbyteIcsMD5.pas Note: Repariere Include-Dateien : include\OverbyteIcsDefs.inc
+ : 
+OverbyteIcsMhsReg.pas(1,24) Note: Added MODE Delphi syntax modifier after unit name.
+ : 
+OverbyteIcsTypes.pas Note: Kodierung von cp1252 zu UTF-8 geändert
+OverbyteIcsTypes.pas Note: Repariere Include-Dateien : include\OverbyteIcsDefs.inc
+ : 
+OverbyteIcsUtils.pas Note: Kodierung von cp1252 zu UTF-8 geändert
+OverbyteIcsUtils.pas Note: Repariere Include-Dateien : include\OverbyteIcsDefs.inc
+OverbyteIcsUtils.pas(8375,24) Note: Aufruf CloseHandle(hFileRes); mit FileClose(hFileRes); { *Konvertiert von CloseHandle* } ersetzt
+ : Umwandlung ist fertig.
